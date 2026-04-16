@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>広島神風タクシー – Phase 2</title>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;}
+#hud{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;font-family:'DotGothic16',monospace;}
+.hp{position:absolute;background:rgba(0,0,0,.72);border:1.5px solid rgba(255,200,0,.7);border-radius:5px;padding:4px 10px;color:#fff;font-size:15px;}
+#hm{top:12px;left:12px;color:#FFD700;font-size:18px;}
+#ht{top:12px;left:50%;transform:translateX(-50%);font-size:20px;min-width:85px;text-align:center;}
+#ht.red{color:#ff4444;animation:blink .5s infinite;}
+#hc{top:12px;right:12px;color:#FF8800;font-size:18px;}
+#hs{bottom:105px;left:12px;}
+#hf{bottom:105px;right:12px;color:#88FF88;display:none;}
+#hstatus{bottom:105px;left:110px;font-size:14px;font-weight:bold;letter-spacing:.08em;}
+#hstatus.vacant  {color:#44FF88;border-color:rgba(68,255,136,.7);}
+#hstatus.occupied{color:#FF8844;border-color:rgba(255,136,68,.7);}#hd{position:absolute;bottom:160px;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,.72);border:1.5px solid rgba(255,100,100,.7);
+  border-radius:5px;padding:4px 14px;color:#FFB6C1;font-size:14px;
+  text-align:center;display:none;white-space:nowrap;}
+#et{position:absolute;top:36%;left:50%;transform:translate(-50%,-50%);
+  font-size:42px;font-family:'DotGothic16',monospace;font-weight:bold;
+  text-shadow:3px 3px 0 #000,-2px -2px 0 #000;
+  pointer-events:none;opacity:0;letter-spacing:.05em;}
+#st{position:absolute;top:52%;left:50%;transform:translateX(-50%);
+  font-size:14px;font-family:'DotGothic16',monospace;color:#fff;
+  text-shadow:2px 2px 0 #000;text-align:center;pointer-events:none;
+  opacity:0;white-space:pre-line;line-height:1.6;}
+#mm{position:absolute;top:62px;right:12px;width:110px;height:110px;
+  background:rgba(0,18,30,.88);border:1.5px solid rgba(255,200,0,.7);
+  border-radius:4px;overflow:hidden;}
+#area-label{position:absolute;bottom:168px;right:12px;font-size:11px;
+  color:rgba(200,220,255,.7);font-family:'DotGothic16',monospace;
+  text-shadow:1px 1px 0 #000;pointer-events:none;}
+#tc{position:fixed;bottom:0;left:0;width:100%;height:88px;z-index:20;
+  display:flex;gap:4px;padding:6px 8px;}
+.tb{flex:1;background:rgba(0,0,0,.55);border:1.5px solid rgba(255,200,0,.6);
+  border-radius:8px;color:#FFD700;font-family:'DotGothic16',monospace;
+  font-size:16px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;text-align:center;line-height:1.25;transition:background .08s;}
+.tb.on,.tb:active{background:rgba(255,180,0,.3);}
+#tb-dash{flex:1.3;background:rgba(150,0,0,.4);border-color:rgba(255,80,80,.7);color:#FF9999;}
+#tb-gas {flex:1.2;background:rgba(0,80,0,.4) ;border-color:rgba(80,255,80,.7);color:#88FF88;}
+.scr{position:fixed;top:0;left:0;width:100%;height:100%;z-index:100;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-family:'DotGothic16',monospace;}
+#title{background:linear-gradient(160deg,#1a1a2e 0%,#16213e 60%,#0f3460 100%);}
+#title h1{font-size:30px;color:#FFD700;text-shadow:4px 4px 0 #cc0000;
+  text-align:center;line-height:1.55;margin-bottom:6px;}
+#title .sub{color:#aaa;font-size:13px;margin-bottom:6px;}
+#title .sub2{color:rgba(100,200,255,.8);font-size:11px;margin-bottom:20px;}
+.op{color:#ccc;font-size:13px;margin:3px 12px;text-align:center;}
+.op b{color:#FFD700;}
+.start-btn{margin-top:22px;padding:14px 48px;font-size:22px;
+  font-family:'DotGothic16',monospace;
+  background:linear-gradient(135deg,#cc0000,#ff4444);
+  color:#fff;border:none;border-radius:8px;cursor:pointer;
+  box-shadow:0 4px 0 #880000;letter-spacing:.05em;}
+.start-btn:active{transform:translateY(2px);box-shadow:0 2px 0 #880000;}
+#result{background:rgba(0,0,0,.93);display:none;}
+#result h1{font-size:54px;text-shadow:3px 3px 0 #000;margin-bottom:18px;}
+.rd{font-size:22px;color:#fff;margin:6px 0;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+</style>
+</head>
+<body>
+
+<div id="title" class="scr">
+  <h1>広島神風タクシー</h1>
+  <div class="sub">Phase 2 – 広島マップ</div>
+  <div class="sub2">平和大通り・広島高速・全21目的地</div>
+  <div class="op">🟢 緑マーカーに近づき<b>ゆっくり停車</b> → 乗車</div>
+  <div class="op">🔴 赤マーカーの目的地へ<b>爆走</b>して届ける！</div>
+  <div class="op" style="margin-top:8px"><b>W / ↑</b> アクセル &nbsp;
+    <b>S / ↓</b> ブレーキ &nbsp; <b>A D / ← →</b> ステアリング</div>
+  <div class="op"><b>Shift</b> 神風ダッシュ &nbsp;|&nbsp; <b>🟣 空港</b>は高速道路で！</div>
+  <button class="start-btn" onclick="startGame()">ゲームスタート！</button>
+</div>
+
+<canvas id="gc"></canvas>
+
+<div id="hud">
+  <div class="hp" id="hm">💰 ¥<span id="mv">0</span></div>
+  <div class="hp" id="ht">⏱ <span id="tv">1:15</span></div>
+  <div class="hp" id="hc">🔥 ×<span id="cv">1.0</span></div>
+  <div class="hp" id="hs">🚗 <span id="sv">0</span> km/h</div>
+  <div class="hp vacant" id="hstatus">空車</div>
+  <div class="hp" id="hf">💴 ¥<span id="fv">700</span></div>
+  <div id="hd">➤ <span id="dn">---</span>&nbsp; <span id="dd">0m</span></div>
+  <div id="et"></div>
+  <div id="st"></div>
+  <canvas id="mm" width="110" height="110"></canvas>
+  <div id="area-label"></div>
+</div>
+
+<div id="tc">
+  <div class="tb" id="tb-l">◀</div>
+  <div class="tb" id="tb-b">▼</div>
+  <div class="tb" id="tb-dash">神風<br>DASH</div>
+  <div class="tb" id="tb-gas">▲</div>
+  <div class="tb" id="tb-r">▶</div>
+</div>
+
+<div id="result" class="scr">
+  <h1 id="rr"></h1>
+  <div class="rd">総売上&nbsp; ¥<span id="rm">0</span></div>
+  <div class="rd">ランク&nbsp; <span id="rl">-</span></div>
+  <div class="rd" id="rdeliveries" style="color:#aaa;font-size:16px;margin-top:8px;"></div>
+  <button class="start-btn" style="font-size:18px;padding:12px 36px;" onclick="startGame()">もう一度！</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════════════
+//  CONSTANTS
+// ═══════════════════════════════════════════════════════════════
+const TAXI_BODY_COL = 0xFFD700;
+const TAXI_ROOF_COL = 0xCC0000;
+const BLD_COLS = [0xCC4444,0x4477CC,0x44AA55,0xCC8844,0x8855AA,0x44AACC,0xCC6644,0x7799AA];
+const MAX_SPD   = 28;
+const DASH_SPD  = 52;
+const ACCEL     = 20;
+const BRAKE_F   = 30;
+const FRICTION  = 3.5;
+const TURN_FAST = 0.88;
+const TURN_SLOW = 2.1;
+const GAME_SCALE = 10;
+const PICKUP_R  = 14;   // game units – pickup radius（道路上から確実に拾える）
+const ARRIVE_R  = 11;
+const ARRIVE_MAX_SPD = 20;
+// Map boundaries (extended for full Hiroshima + airport highway)
+const MAP_XMIN = -182, MAP_XMAX = 264;
+const MAP_ZMIN = -196, MAP_ZMAX = 118;
+
+// ═══════════════════════════════════════════════════════════════
+//  GAME STATE
+// ═══════════════════════════════════════════════════════════════
+const G = {
+  phase:    'TITLE',
+  carState: 'SEEK',
+  timer:     75,
+  earn:      0,
+  deliveries:0,
+  spd:       0,
+  hdg:       0,
+  pos:   new THREE.Vector3(-60, .5, 0),
+  tripDist:  0,
+  etTimer:   0,
+  stTimer:   0,
+  pax:  [],
+  dest: { pos: new THREE.Vector3(0,0,0), name:'---', mesh:null },
+  inp: {
+    gasK:false, brkK:false, lK:false, rK:false, dashK:false,
+    gasT:false, brkT:false, lT:false, rT:false, dashT:false
+  },
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  THREE.JS SETUP
+// ═══════════════════════════════════════════════════════════════
+const renderer = new THREE.WebGLRenderer({ canvas:document.getElementById('gc'), antialias:false });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+renderer.setSize(innerWidth, innerHeight);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x7EC8E3);
+scene.fog = new THREE.FogExp2(0x89D4E8, .0038);
+
+const cam = new THREE.PerspectiveCamera(65, innerWidth/innerHeight, .1, 400);
+let camPos = new THREE.Vector3(10, 8, 32);
+
+scene.add(new THREE.AmbientLight(0xffffff, .72));
+const sun = new THREE.DirectionalLight(0xFFF5E0, .92);
+sun.position.set(60, 120, 80); scene.add(sun);
+const fill = new THREE.DirectionalLight(0xCCDDFF, .28);
+fill.position.set(-40, 30, -60); scene.add(fill);
+
+// ═══════════════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════════════
+function mk(geo, mat, x=0, y=0, z=0) {
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(x, y, z);
+  return m;
+}
+function darken(h, f) {
+  return (Math.floor((h>>16&255)*f)<<16)|(Math.floor((h>>8&255)*f)<<8)|Math.floor((h&255)*f);
+}
+function mkMat(col) { return new THREE.MeshLambertMaterial({color:col}); }
+function rand(a)    { return a[Math.floor(Math.random()*a.length)]; }
+
+// ═══════════════════════════════════════════════════════════════
+//  ROAD MATERIALS (module-level)
+// ═══════════════════════════════════════════════════════════════
+const roadMat = mkMat(0x2E2E2E);
+const hwyMat  = mkMat(0x3A3A3A);
+const sdwkMat = mkMat(0x9A9880);
+const lineMat = mkMat(0xDDDDAA);
+
+// ═══════════════════════════════════════════════════════════════
+//  ROAD SEGMENT DATA (for minimap)
+// ═══════════════════════════════════════════════════════════════
+const ROAD_SEGS = [];
+
+// ── Obstacle registries (filled at build time) ──────────────────
+const OBS_BOX = [];   // {cx, cz, hw, hd}
+const OBS_CIR = [];   // {cx, cz, r}
+const CAR_R   = 1.6;  // car collision radius
+
+function buildRoadSeg(x1, z1, x2, z2, width, mat, isHwy=false) {
+  ROAD_SEGS.push({x1, z1, x2, z2, w:width, isHwy});
+  const dx=x2-x1, dz=z2-z1;
+  const len=Math.sqrt(dx*dx+dz*dz);
+  const angle=Math.atan2(dx, dz);
+  const cx=(x1+x2)/2, cz=(z1+z2)/2;
+  const yOff = isHwy ? 0.38 : 0.02;
+
+  if (isHwy) {
+    // Elevated base structure
+    const base = mk(new THREE.BoxGeometry(width+3, 0.34, len+1), mkMat(0x666666), cx, 0.17, cz);
+    base.rotation.y = angle; scene.add(base);
+    // Guardrails
+    const nx=-dz/len, nz=dx/len;
+    [-(width/2+0.8), width/2+0.8].forEach(side => {
+      const gr = mk(new THREE.BoxGeometry(0.5, 0.6, len), mkMat(0x999999), cx+nx*side, yOff+0.3, cz+nz*side);
+      gr.rotation.y = angle; scene.add(gr);
+    });
+  } else {
+    // Sidewalk strip
+    const sw = mk(new THREE.BoxGeometry(width+4, 0.03, len+1), sdwkMat, cx, 0.01, cz);
+    sw.rotation.y = angle; scene.add(sw);
+  }
+
+  // Road surface
+  const road = mk(new THREE.BoxGeometry(width, 0.06, len), mat, cx, yOff, cz);
+  road.rotation.y = angle; scene.add(road);
+
+  // Center dashed lines (every 22 units, skip for very narrow roads)
+  if (width >= 9) {
+    const nL = Math.floor(len/22);
+    const dashMat = isHwy ? mkMat(0xFFFFAA) : lineMat;
+    for (let i=0; i<nL; i++) {
+      const t = (i+0.5)/nL;
+      const lm = mk(new THREE.BoxGeometry(0.35, 0.07, isHwy?10:7), dashMat,
+                    x1+dx*t, yOff+0.02, z1+dz*t);
+      lm.rotation.y = angle; scene.add(lm);
+    }
+    // Highway solid edge lines
+    if (isHwy) {
+      const nx=-dz/len, nz=dx/len;
+      [-(width/2-1.2), width/2-1.2].forEach(side => {
+        const el = mk(new THREE.BoxGeometry(0.45, 0.07, len), mkMat(0xFFFFFF),
+                      cx+nx*side, yOff+0.02, cz+nz*side);
+        el.rotation.y = angle; scene.add(el);
+      });
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MAP – HIROSHIMA (Phase 2-1)
+// ═══════════════════════════════════════════════════════════════
+function buildHiroshimaMap() {
+
+  // ── Ground ───────────────────────────────────────────────────
+  const gnd = mk(new THREE.PlaneGeometry(700, 520), mkMat(0x4A6741), 40, 0, -38);
+  gnd.rotation.x = -Math.PI/2; scene.add(gnd);
+  // Airport/highway area (slightly different ground)
+  const gndHwy = mk(new THREE.PlaneGeometry(340, 280), mkMat(0x52614A), 175, 0.001, -95);
+  gndHwy.rotation.x = -Math.PI/2; scene.add(gndHwy);
+
+  // ── H-Roads (horizontal, constant Z) ─────────────────────────
+  buildRoadSeg(-160,  0,  120,  0, 14, roadMat);  // 平和大通り（東西幹線）
+  buildRoadSeg( -90, 22,   80, 22, 10, roadMat);  // 八丁堀通り
+  buildRoadSeg( -60,-28,   80,-28,  9, roadMat);  // 城北南通り
+  buildRoadSeg(-100, 55,   80, 55, 10, roadMat);  // 南部横断道（東側）
+  buildRoadSeg(-165, 55, -100, 55,  9, roadMat);  // 南部横断道（西延長：宮島方面）
+  buildRoadSeg( -28,-65,   38,-65,  9, roadMat);  // 城北横断
+  buildRoadSeg(-165, 92,  -15, 92,  9, roadMat);  // 宮島沿岸道路
+
+  // ── V-Roads (vertical, constant X) ───────────────────────────
+  buildRoadSeg(  0, -80,   0, 100, 13, roadMat);  // 相生通り（南北幹線）
+  buildRoadSeg( 24, -65,  24,  65, 10, roadMat);  // 城東通り
+  buildRoadSeg(-45, -15, -45,  65,  9, roadMat);  // 平和通り
+  buildRoadSeg( 62, -10,  62,  65, 10, roadMat);  // 駅前大通り
+  buildRoadSeg(-92,  55, -92, 100,  8, roadMat);  // 宮島中間縦（南部横断道から接続）
+  buildRoadSeg(-158, 55,-158, 100,  8, roadMat);  // 宮島端縦（南部横断道から接続）
+
+  // ── Diagonal roads ────────────────────────────────────────────
+  buildRoadSeg( 24,  0,  62,  42, 11, roadMat);   // 駅前アプローチ
+  buildRoadSeg( 24, 22,  50,  62,  9, roadMat);   // 比治山通り
+  buildRoadSeg( 62, 42, 100, -15, 12, roadMat);   // 空港アクセス道（市街地）
+
+  // ── Airport Highway (elevated) ───────────────────────────────
+  buildRoadSeg(100,-15, 248,-178, 15, hwyMat, true); // 広島高速（空港線）
+
+  // ── Airport terminal area ─────────────────────────────────────
+  const apGnd = mk(new THREE.PlaneGeometry(80, 60), mkMat(0x555550), 248, 0.01, -178);
+  apGnd.rotation.x = -Math.PI/2; scene.add(apGnd);
+  // Runway
+  const rwy = mk(new THREE.BoxGeometry(10, 0.05, 70), mkMat(0x404040), 248, 0.04, -178);
+  scene.add(rwy);
+  // Terminal building
+  const term = mk(new THREE.BoxGeometry(30, 8, 15), mkMat(0xBBBBAA), 248, 4, -190);
+  scene.add(term);
+  OBS_BOX.push({ cx:248, cz:-190, hw:15, hd:7.5 });
+  const termRoof = mk(new THREE.BoxGeometry(32, 1, 17), mkMat(0xAAAAAA), 248, 8.5, -190);
+  scene.add(termRoof);
+
+  // ── Buildings per area ────────────────────────────────────────
+  // [cx, cz, spread, count, minH, maxH, colorBase]
+  // ── 中心部東：道路ブロックが狭いため1棟手動配置 ────────────
+  scene.add(mk(new THREE.BoxGeometry(7,18,9),  mkMat(BLD_COLS[0]), 13, 9, -15));
+  scene.add(mk(new THREE.BoxGeometry(7.3,.5,9.3), mkMat(darken(BLD_COLS[0],.68)), 13,18.25,-15));
+  OBS_BOX.push({cx:13, cz:-15, hw:3.5, hd:4.5});
+
+  const BCLUSTERS = [
+    [-33,-16, 1, 4,  8, 16, 1, '中心部西'],
+    [ 82, 40, 3, 4,  8, 18, 2, '八丁堀'],
+    [ 90, 38, 4, 4,  6, 14, 3, '駅前'],
+    [-88,-22, 2, 3,  4, 10, 4, '平和公園西'],
+    [ 37,-52, 3, 3,  8, 14, 5, '城北東'],
+    [-40,-62, 2, 3,  6, 12, 6, '城北西'],
+    [ 64, 77, 3, 4,  6, 12, 7, '比治山'],
+    [ 30, 78, 3, 3,  4,  9, 0, '南部東'],
+    [-130, 68, 3, 3,  4,  8, 1, '南部西'],      // 旧(-90,68)→宮島中間縦に接触のため(-130,68)に移動
+    [-146, 67, 2, 3,  3,  8, 2, '宮島街道中間'], // 旧(-126,65)→南部横断道西延長に接触のため(-146,67)に移動
+    [-170, 68, 2, 3,  3,  7, 3, '宮島口'],       // 旧(-162,65)→宮島端縦・南部横断道に接触のため(-170,68)に移動
+    [ 98,-66, 3, 3,  4,  9, 4, '空港アクセス'],
+  ];
+  BCLUSTERS.forEach(([bx,bz,sp,cnt,mh,Mh,ci]) => {
+    for (let i=0; i<cnt; i++) {
+      const phi = i*2.399963, r = sp*(0.4+(i/cnt)*0.6);
+      const x = bx+Math.cos(phi)*r, z = bz+Math.sin(phi)*r;
+      const h = mh+(i/cnt)*(Mh-mh);
+      const w = 7+(i%3)*2, d = 7+((i+1)%3)*2;
+      const col = BLD_COLS[(ci+i)%BLD_COLS.length];
+      scene.add(mk(new THREE.BoxGeometry(w,h,d), mkMat(col), x, h/2, z));
+      scene.add(mk(new THREE.BoxGeometry(w+.3,.5,d+.3), mkMat(darken(col,.68)), x, h+.25, z));
+      OBS_BOX.push({ cx:x, cz:z, hw:w/2, hd:d/2 });
+    }
+  });
+
+  // ── Trees (along 平和大通り + key spots) ─────────────────────
+  const trunkM = mkMat(0x5C3317), leafM = mkMat(0x2E8B22);
+  const TREE_PTS = [
+    // 平和大通り南側（斜め道路・縦道路の交差点を全て回避）
+    [-120,-11],[-100,-11],[-80,-11],[-60,-11],[-20,-11],
+    [-38,-11],[12,-11],[36,-11],[50,-11],[107,-10],
+    // 平和大通り北側
+    [-120, 11],[-100, 11],[-80, 11],[-60, 11],[-20, 11],
+    [12, 11],[44, 10],[72, 11],
+    // 広島城周辺（城北横断z=-65±4.5の北側のみ）
+    [10,-56],[-10,-56],[16,-58],
+    // 比治山
+    [46,70],[52,72],[47,76],[55,74],
+    // 平和公園（平和通りx=-45から大きく離した公園奥）
+    [-62,-18],[-66,-16],[-70,-15],[-70,13],
+    // 南部（平和通り・城東通り回避）
+    [-80,64],[-60,64],[-20,64],[-38,64],[12,64],[50,69],
+  ];
+  TREE_PTS.forEach(([x,z]) => {
+    scene.add(mk(new THREE.CylinderGeometry(.25,.3,2.2,5), trunkM, x, 1.1, z));
+    scene.add(mk(new THREE.CylinderGeometry(0, 2, 3.2, 6), leafM, x, 3.6, z));
+    OBS_CIR.push({ cx:x, cz:z, r:1.6 });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  TAXI MODEL
+// ═══════════════════════════════════════════════════════════════
+let carGrp, wheels = [];
+function buildCar() {
+  carGrp = new THREE.Group();
+  const yM=mkMat(TAXI_BODY_COL), dkM=mkMat(0x1E2E3C), gmM=mkMat(0x888888);
+  const hlM=mkMat(0xFFFFBB), tlM=mkMat(0xFF2200), rnM=mkMat(TAXI_ROOF_COL);
+  carGrp.add(mk(new THREE.BoxGeometry(2.2,.82,4.2), yM, 0,.6,0));
+  carGrp.add(mk(new THREE.BoxGeometry(1.88,.74,2.32), yM, 0,1.37,.15));
+  carGrp.add(mk(new THREE.BoxGeometry(.78,.34,.5), rnM, 0,1.87,.15));
+  carGrp.add(mk(new THREE.BoxGeometry(1.8,.52,.12), dkM, 0,1.26,-.9));
+  carGrp.add(mk(new THREE.BoxGeometry(1.8,.52,.12), dkM, 0,1.26,1.2));
+  carGrp.add(mk(new THREE.BoxGeometry(.12,.42,1.8), dkM, 1.06,1.32,.2));
+  carGrp.add(mk(new THREE.BoxGeometry(.12,.42,1.8), dkM,-1.06,1.32,.2));
+  carGrp.add(mk(new THREE.BoxGeometry(1.92,.32,.2), gmM, 0,.32,-2.2));
+  carGrp.add(mk(new THREE.BoxGeometry(1.92,.32,.2), gmM, 0,.32,2.2));
+  [-.7,.7].forEach(x => carGrp.add(mk(new THREE.BoxGeometry(.48,.28,.14), hlM, x,.6,-2.14)));
+  [-.7,.7].forEach(x => carGrp.add(mk(new THREE.BoxGeometry(.48,.28,.14), tlM, x,.6,2.14)));
+  [-.7,.7].forEach(x => carGrp.add(mk(new THREE.BoxGeometry(.35,.15,.12), mkMat(0x666666), x>0?x+1.14:-x-1.14,.98,-.7)));
+  const wkGeo=new THREE.CylinderGeometry(.5,.5,.38,10), wkM=mkMat(0x1E1E1E);
+  [[-1.2,.5,-1.32],[1.2,.5,-1.32],[-1.2,.5,1.32],[1.2,.5,1.32]].forEach(([x,y,z]) => {
+    const wg=new THREE.Group();
+    const wm=new THREE.Mesh(wkGeo,wkM); wm.rotation.z=Math.PI/2; wg.add(wm);
+    wg.position.set(x,y,z); carGrp.add(wg); wheels.push(wg);
+  });
+  scene.add(carGrp);
+  carGrp.position.copy(G.pos);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DESTINATION POOL – 全21箇所
+// ═══════════════════════════════════════════════════════════════
+const DEST_POOL = [
+  // 駅前エリア
+  { pos:new THREE.Vector3(  70,0,  47), name:'広島駅 新幹線口'         },
+  { pos:new THREE.Vector3(  77,0,  63), name:'マツダスタジアム'        },
+  { pos:new THREE.Vector3(  52,0,  45), name:'ekie（エキエ）'          },
+  // 中心部
+  { pos:new THREE.Vector3(  16,0,  10), name:'八丁堀交差点'             },
+  { pos:new THREE.Vector3(  11,0,  10), name:'本通り商店街 入口'       },
+  { pos:new THREE.Vector3(  16,0,  31), name:'流川 お好み村'            },
+  { pos:new THREE.Vector3( -10,0,  10), name:'紙屋町地下街'             },
+  { pos:new THREE.Vector3( -11,0, -10), name:'基町クレド'               },
+  // 平和エリア
+  { pos:new THREE.Vector3( -37,0,  10), name:'原爆ドーム前'             },
+  { pos:new THREE.Vector3( -53,0,  11), name:'平和記念資料館'           },
+  { pos:new THREE.Vector3( -22,0,  30), name:'舟入のお好み焼き屋'      },
+  // 城北エリア
+  { pos:new THREE.Vector3(  10,0, -57), name:'広島城 正門'              },
+  { pos:new THREE.Vector3(  21,0, -73), name:'縮景園'                   },
+  { pos:new THREE.Vector3( -11,0, -57), name:'横川駅'                   },
+  { pos:new THREE.Vector3(  10,0, -45), name:'広島グリーンアリーナ'    },
+  // 比治山エリア
+  { pos:new THREE.Vector3(  54,0,  69), name:'比治山展望台'             },
+  { pos:new THREE.Vector3(  41,0,  63), name:'段原ショッピングモール'  },
+  // 海岸エリア
+  { pos:new THREE.Vector3( -17,0,  63), name:'太田川河川敷'             },
+  { pos:new THREE.Vector3( -29,0, 100), name:'広島港（宇品）'          },
+  { pos:new THREE.Vector3(-151,0, 100), name:'宮島口フェリー乗り場'    },
+  // 超遠距離（空港）
+  { pos:new THREE.Vector3( 248,0,-178), name:'広島空港'                 },
+];
+let destI = 0;
+
+// ═══════════════════════════════════════════════════════════════
+//  PASSENGER SPAWN POINTS
+// ═══════════════════════════════════════════════════════════════
+const PAX_INIT = [
+  { pos:new THREE.Vector3( 16,0, 13), name:'中心部の客',   color:0x00DD44 },  // 相生通り東歩道
+  { pos:new THREE.Vector3( 46,0, 38), name:'駅前の客',     color:0x44AAFF },  // 駅前アプローチ北側歩道
+  { pos:new THREE.Vector3(-32,0,  9), name:'平和公園の客', color:0xFFAA00 },  // 平和大通り北歩道（木から離す）
+];
+const EXTRA_PAX = [
+  new THREE.Vector3( 12,0,-37),   // 城東通り西歩道
+  new THREE.Vector3( 14,0,-54),   // 相生通り東歩道・城北（木(10,-56)から離す）
+  new THREE.Vector3( 53,0, 46),   // 南部横断道北歩道
+  new THREE.Vector3(-83,0,100),   // 宮島沿岸南歩道
+  new THREE.Vector3(-16,0, 65),   // 南部エリア歩道（木(-20,64)から離す）
+  new THREE.Vector3( 76,0, 38),   // 駅前大通り東歩道
+  new THREE.Vector3(-37,0, 30),   // 平和通り東歩道
+  new THREE.Vector3( 10,0, 42),   // 相生通り東歩道（南部）
+];
+let extraPaxI = 0;
+let paxRespawnT = -1;
+
+// ═══════════════════════════════════════════════════════════════
+//  MARKERS (passengers + destination)
+// ═══════════════════════════════════════════════════════════════
+function buildMarkers() {
+  PAX_INIT.forEach((pd) => {
+    const grp = new THREE.Group();
+    const colM = mkMat(pd.color), dkC = mkMat(darken(pd.color,.55));
+    grp.add(mk(new THREE.CylinderGeometry(2.9,2.9,.2,16), colM, 0,.1,0));
+    grp.add(mk(new THREE.CylinderGeometry(.18,.18,6.8,6), colM, 0,3.4,0));
+    grp.add(mk(new THREE.SphereGeometry(.72,8,6), colM, 0,7.2,0));
+    grp.add(mk(new THREE.SphereGeometry(.42,6,4), dkC, 0,8.1,0));
+    grp.add(mk(new THREE.CylinderGeometry(.28,.35,1.35,6), mkMat(0x776644), .65,.68,.45));
+    grp.add(mk(new THREE.SphereGeometry(.32,6,5), mkMat(0xFFCC99), .65,1.62,.45));
+    grp.add(mk(new THREE.CylinderGeometry(.1,.1,.7,4), mkMat(0x776644), 1.08,1.0,.45));
+    grp.position.copy(pd.pos);
+    scene.add(grp);
+    G.pax.push({ pos:pd.pos.clone(), name:pd.name, color:pd.color, active:true, mesh:grp });
+  });
+
+  // Destination marker
+  const dg = new THREE.Group();
+  const redM=mkMat(0xFF3300), red2M=mkMat(0xFF1100);
+  dg.add(mk(new THREE.CylinderGeometry(.15,.15,8.5,6), redM, 0,4.25,0));
+  dg.add(mk(new THREE.BoxGeometry(3,.04,2.8), mkMat(0xFF5500), 0,.02,0));
+  dg.add(mk(new THREE.BoxGeometry(3.2,1.8,.14), red2M, 1.6,8,0));
+  dg.add(mk(new THREE.CylinderGeometry(3.2,3.2,.2,16), redM, 0,.1,0));
+  for(let i=0;i<4;i++){
+    dg.add(mk(new THREE.BoxGeometry(.7,.22,2.8), mkMat(i%2===0?0xFF3300:0xFFCC00), -1.05+i*.7,.22,0));
+  }
+  dg.position.copy(G.dest.pos);
+  dg.visible = false;
+  scene.add(dg);
+  G.dest.mesh = dg;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PROXIMITY RINGS
+// ═══════════════════════════════════════════════════════════════
+function mkRing(r, col) {
+  const m = new THREE.Mesh(
+    new THREE.RingGeometry(r-.25,r,32),
+    new THREE.MeshBasicMaterial({color:col, side:THREE.DoubleSide})
+  );
+  m.rotation.x = -Math.PI/2; m.position.y = .05;
+  return m;
+}
+const pickupRing = mkRing(PICKUP_R, 0x00FF88); pickupRing.visible=false; scene.add(pickupRing);
+const arriveRing = mkRing(ARRIVE_R, 0xFF4400); arriveRing.visible=false; scene.add(arriveRing);
+
+// ═══════════════════════════════════════════════════════════════
+//  INPUT
+// ═══════════════════════════════════════════════════════════════
+const keys = {};
+addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+
+function setupTouch() {
+  const MAP = { 'tb-l':'lT','tb-r':'rT','tb-b':'brkT','tb-gas':'gasT','tb-dash':'dashT' };
+  Object.entries(MAP).forEach(([id,key]) => {
+    const el = document.getElementById(id);
+    const on=()=>{ G.inp[key]=true; el.classList.add('on'); };
+    const off=()=>{ G.inp[key]=false; el.classList.remove('on'); };
+    el.addEventListener('touchstart', e=>{e.preventDefault();on();},{passive:false});
+    el.addEventListener('touchend',   e=>{e.preventDefault();off();});
+    el.addEventListener('touchcancel',off);
+    el.addEventListener('mousedown',  on);
+    el.addEventListener('mouseup',    off);
+    el.addEventListener('mouseleave', off);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  COLLISION
+// ═══════════════════════════════════════════════════════════════
+let shakeTimer = 0;     // camera shake duration
+let lastHitTime = -999; // prevent repeated hit sounds/effects
+
+function resolveCollisions(newX, newZ) {
+  let rx = newX, rz = newZ;
+  let hit = false;
+
+  // ── AABB buildings ──────────────────────────────────────────
+  for (const b of OBS_BOX) {
+    // closest point on box to car center
+    const cx = Math.max(b.cx - b.hw, Math.min(b.cx + b.hw, rx));
+    const cz = Math.max(b.cz - b.hd, Math.min(b.cz + b.hd, rz));
+    const dx = rx - cx, dz = rz - cz;
+    const dist = Math.sqrt(dx*dx + dz*dz);
+    if (dist < CAR_R && dist > 0.001) {
+      // push car out along the collision normal
+      const nx = dx/dist, nz = dz/dist;
+      const pen = CAR_R - dist;
+      rx += nx * pen;
+      rz += nz * pen;
+      hit = true;
+    }
+  }
+
+  // ── Circle trees ────────────────────────────────────────────
+  for (const t of OBS_CIR) {
+    const dx = rx - t.cx, dz = rz - t.cz;
+    const dist = Math.sqrt(dx*dx + dz*dz);
+    const minD = CAR_R + t.r;
+    if (dist < minD && dist > 0.001) {
+      const nx = dx/dist, nz = dz/dist;
+      rx += nx * (minD - dist);
+      rz += nz * (minD - dist);
+      hit = true;
+    }
+  }
+
+  return { rx, rz, hit };
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PHYSICS
+// ═══════════════════════════════════════════════════════════════
+function physics(dt) {
+  const i=G.inp;
+  const gas=i.gasK||i.gasT, brk=i.brkK||i.brkT;
+  const lft=i.lK||i.lT, rgt=i.rK||i.rT, dash=i.dashK||i.dashT;
+  const mxs = dash ? DASH_SPD : MAX_SPD;
+  if (gas) {
+    G.spd = G.spd<0 ? G.spd+BRAKE_F*dt : Math.min(G.spd+(dash?ACCEL*2.2:ACCEL)*dt, mxs);
+  } else if (brk) {
+    G.spd = G.spd>0 ? G.spd-BRAKE_F*dt : Math.max(G.spd-ACCEL*.55*dt,-9);
+  } else {
+    const f=FRICTION*dt;
+    G.spd = Math.abs(G.spd)<f ? 0 : G.spd-Math.sign(G.spd)*f;
+  }
+  if (Math.abs(G.spd)>.4) {
+    const sr=Math.min(Math.abs(G.spd)/MAX_SPD,1);
+    const tr=TURN_SLOW+(TURN_FAST-TURN_SLOW)*sr;
+    const ddir=Math.sign(G.spd);
+    if (lft) G.hdg+=tr*dt*ddir;
+    if (rgt) G.hdg-=tr*dt*ddir;
+  }
+  const prev = G.pos.clone();
+  const sh=Math.sin(G.hdg), ch=Math.cos(G.hdg);
+  let nx = G.pos.x - sh*G.spd*dt;
+  let nz = G.pos.z - ch*G.spd*dt;
+  nx = Math.max(MAP_XMIN, Math.min(MAP_XMAX, nx));
+  nz = Math.max(MAP_ZMIN, Math.min(MAP_ZMAX, nz));
+
+  // Collision resolve
+  const { rx, rz, hit } = resolveCollisions(nx, nz);
+  G.pos.x = rx;
+  G.pos.z = rz;
+  G.pos.y = .5;
+
+  if (hit) {
+    const now = G.timer;
+    if (now - lastHitTime > 0.4) { // cooldown 0.4s
+      lastHitTime = now;
+      const impact = Math.abs(G.spd);
+      G.spd *= -0.25; // bounce back slightly
+      if (impact > 3) {
+        showEval('衝突！', '#FF4444', 1.2);
+        shakeTimer = 0.28;
+        G.combo = 1.0; // reset combo (Phase 3 hook)
+      }
+    } else {
+      G.spd = 0;
+    }
+  }
+
+  if (G.carState==='RIDE') G.tripDist += prev.distanceTo(G.pos)*GAME_SCALE;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CAMERA
+// ═══════════════════════════════════════════════════════════════
+function updateCam(dt) {
+  const sh=Math.sin(G.hdg), ch=Math.cos(G.hdg);
+  const tgt = new THREE.Vector3(G.pos.x+sh*11, G.pos.y+5.5, G.pos.z+ch*11);
+  camPos.lerp(tgt, .1);
+  cam.position.copy(camPos);
+
+  // Camera shake on collision
+  let sx=0, sy=0;
+  if (shakeTimer > 0) {
+    shakeTimer -= dt;
+    const mag = shakeTimer * 1.2;
+    sx = (Math.random()-.5)*mag;
+    sy = (Math.random()-.5)*mag*0.5;
+  }
+  cam.lookAt(G.pos.x+sx, G.pos.y+1.6+sy, G.pos.z);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  FARE / RANK
+// ═══════════════════════════════════════════════════════════════
+function calcFare(distM) {
+  // 広島空港定額
+  if (distM > 40000) return 17000;
+  return 700 + Math.ceil(Math.max(0,distM-1150)/300)*100;
+}
+function getDistReal(gu) { return gu*GAME_SCALE; }
+function getRank(e) {
+  return e>=30000?'S':e>=20000?'A':e>=12000?'B':e>=6000?'C':e>=3000?'D':'E';
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  AREA LABEL
+// ═══════════════════════════════════════════════════════════════
+const AREAS = [
+  { name:'中心部',    xMin:-20, xMax:40,  zMin:-35, zMax:30  },
+  { name:'平和エリア',xMin:-80, xMax:-20, zMin:-20, zMax:30  },
+  { name:'城北エリア',xMin:-30, xMax:40,  zMin:-80, zMax:-28 },
+  { name:'比治山エリア',xMin:30,xMax:80,  zMin:30,  zMax:80  },
+  { name:'広島駅前',  xMin:40,  xMax:90,  zMin:-15, zMax:70  },
+  { name:'海岸エリア',xMin:-110,xMax:30,  zMin:60,  zMax:110 },
+  { name:'宮島方面',  xMin:-175,xMax:-90, zMin:70,  zMax:110 },
+  { name:'空港高速',  xMin:90,  xMax:265, zMin:-200,zMax:-10 },
+];
+function getAreaName() {
+  for (const a of AREAS) {
+    if (G.pos.x>=a.xMin&&G.pos.x<=a.xMax&&G.pos.z>=a.zMin&&G.pos.z<=a.zMax) return a.name;
+  }
+  return '';
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  TEXT OVERLAY
+// ═══════════════════════════════════════════════════════════════
+function showEval(txt, col, dur=2.5) {
+  const e=document.getElementById('et');
+  e.textContent=txt; e.style.color=col; e.style.opacity='1';
+  e.style.fontSize=txt.length>9?'28px':'42px';
+  G.etTimer=dur;
+}
+function showStatus(txt, dur=3.8) {
+  const e=document.getElementById('st');
+  e.textContent=txt; e.style.opacity='1'; G.stTimer=dur;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DIALOGUE
+// ═══════════════════════════════════════════════════════════════
+// 目的地名 → 乗車セリフ（複数ある場合はランダム選択）
+const BOARD_BY_DEST = {
+  '広島駅 新幹線口':   ['駅弁買うて新幹線乗るけぇ、ギリギリなんよ！',
+                        '孫に会いに広島駅まで頼むよ、楽しみじゃのう'],
+  'マツダスタジアム':  ['カープの試合に遅れるけぇ、はよしてくれんさい！',
+                        'カープの応援に行くんじゃ！飛ばしてくれぇや！'],
+  'ekie（エキエ）':    ['ekieで買い物があるんよ、急いでくれぇや！'],
+  '八丁堀交差点':      ['八丁堀まで頼むわ、急ぎなんじゃ！',
+                        'はよしてくれんさい！遅刻じゃ！'],
+  '本通り商店街 入口': ['本通りでショッピングじゃ！お金が飛んでいくわ〜',
+                        '本通りで待ち合わせなんよ、急いで！'],
+  '流川 お好み村':     ['流川で飲みに行くけぇね、テンション上げてこうや！',
+                        'お好み焼き食べに行くんよ、腹が減ってたまらんのじゃ'],
+  '紙屋町地下街':      ['紙屋町の地下街で待ち合わせなんよ',
+                        '急いどるんじゃけぇ、飛ばしてくれぇや！'],
+  '基町クレド':        ['基町クレドまで頼むわ、デートなんじゃ',
+                        'クレドで用事があるんよ、はよ！'],
+  '原爆ドーム前':      ['平和公園でお祈りしたいんよ…飛ばせ！',
+                        '原爆ドーム前まで頼むわ、急いでくれぇ'],
+  '平和記念資料館':    ['平和記念資料館に行くんよ、時間がないんじゃ',
+                        '修学旅行生を待たせとるんじゃ、はよ！'],
+  '舟入のお好み焼き屋':['舟入のお好み焼き屋まで頼むわ、腹ペコじゃ！',
+                        'お好み焼きが食べたくてたまらんのよ！飛ばして！'],
+  '広島城 正門':       ['広島城のライトアップ見に行くけぇ',
+                        '広島城まで急いでくれんさい！'],
+  '縮景園':            ['縮景園の紅葉がきれいらしいよ、はよ連れてって',
+                        '縮景園でのんびりしたいんじゃ、急いでくれぇ'],
+  '横川駅':            ['横川の映画館に行きたいんよ',
+                        '横川駅まで頼むわ、電車に乗り遅れるんじゃ！'],
+  '広島グリーンアリーナ':['グリーンアリーナでライブがあるんよ！',
+                        'コンサートに遅れるけぇ、ぶち飛ばしてくれ！'],
+  '比治山展望台':      ['比治山の展望台から夜景見たいんじゃ',
+                        '比治山まで頼むわ、景色が楽しみじゃのう'],
+  '段原ショッピングモール':['段原のモールで買い物があるんよ、急いで！'],
+  '太田川河川敷':      ['太田川の河川敷でのんびりしたいんじゃ',
+                        '河川敷まで頼むわ、いい天気じゃのう'],
+  '広島港（宇品）':    ['広島港まで頼むわ、船に乗るんじゃ！',
+                        '宇品まで急いでくれぇや、フェリーが出るんじゃ！'],
+  '宮島口フェリー乗り場':['宮島口まで頼むわ、フェリーに間に合わせてぇや',
+                         'もみじ饅頭買うて帰りたいんじゃが、急いでくれるかね'],
+  '広島空港':          ['空港まで飛ばしてくれ！飛行機に乗り遅れるんじゃ！',
+                        'フライトがあるんじゃ、ぶち飛ばしてくれぇや！'],
+};
+// 目的地マップにない場合の汎用セリフ
+const BOARD_GENERIC = [
+  '急いどるんじゃけぇ、飛ばしてくれぇや！',
+  'はよしてくれんさい！遅刻じゃ！',
+  'あんた運転上手いんね？飛ばしてくれぇや！',
+  'ほいじゃが、ちょっと遠いのう…まぁ頼むわ',
+];
+function getBoardLine(destName) {
+  const lines = BOARD_BY_DEST[destName] || BOARD_GENERIC;
+  return lines[Math.floor(Math.random()*lines.length)];
+}
+const ARRIVE_LINES = [
+  'ありがとね、チップ弾むけぇ！',
+  'えっ、もう着いたん？速すぎじゃろ！',
+  'じゃけぇ広島のタクシーは最高じゃ！',
+  'あんた名人じゃのう！また乗せてくれぇや',
+  'ぶち楽しかったわ！友達にも教えるけぇ',
+];
+const DRIVE_LINES = [
+  'おおー！ぶち速いのぉ！',
+  'ひゃー！たまげたわ！',
+  'あんた神風じゃのう！',
+  'こりゃカープの応援より興奮するわ！',
+];
+const HWY_LINES = [
+  '高速じゃ！ぶち速いのう！',
+  '飛行機よりこのタクシーのほうが速いんじゃないか！',
+  'ワシの心臓がもつかのう…でも最高じゃ！',
+];
+
+// ═══════════════════════════════════════════════════════════════
+//  GAME LOGIC
+// ═══════════════════════════════════════════════════════════════
+let onHighwaySince = -1;
+
+function gameLogic(dt) {
+  if (G.phase!=='PLAY') return;
+  G.timer-=dt;
+  if (G.timer<=0) { G.timer=0; endGame(); return; }
+
+  // Area label
+  document.getElementById('area-label').textContent = getAreaName();
+
+  // Highway detection
+  const isOnHwy = G.pos.x>95 && G.pos.z<-10;
+  if (isOnHwy && onHighwaySince<0) {
+    onHighwaySince = G.timer;
+    showEval('高速道路', '#AAFFFF', 1.5);
+  } else if (!isOnHwy) {
+    onHighwaySince = -1;
+  }
+
+  // Proximity rings
+  let nearestPax=null, nearestD=999;
+  if (G.carState==='SEEK') {
+    G.pax.forEach(p => {
+      if (!p.active) return;
+      const d=G.pos.distanceTo(p.pos);
+      if (d<nearestD) { nearestD=d; nearestPax=p; }
+    });
+    if (nearestPax && nearestD<PICKUP_R*2.5) {
+      pickupRing.position.set(nearestPax.pos.x,.05,nearestPax.pos.z);
+      pickupRing.visible=true;
+    } else { pickupRing.visible=false; }
+    arriveRing.visible=false;
+  } else if (G.carState==='RIDE') {
+    pickupRing.visible=false;
+    const dTD=G.pos.distanceTo(G.dest.pos);
+    if (dTD<ARRIVE_R*2.5) {
+      arriveRing.position.set(G.dest.pos.x,.05,G.dest.pos.z);
+      arriveRing.visible=true;
+    } else { arriveRing.visible=false; }
+  } else {
+    pickupRing.visible=false; arriveRing.visible=false;
+  }
+
+  // Passenger pickup
+  if (G.carState==='SEEK') {
+    G.pax.forEach(p => {
+      if (!p.active) return;
+      if (G.pos.distanceTo(p.pos)<PICKUP_R && Math.abs(G.spd)<10) {
+        p.active=false; p.mesh.visible=false;
+        G.carState='RIDE'; G.tripDist=0;
+        const d2d=p.pos.distanceTo(G.dest.pos);
+        G.timer += d2d>90?30 : d2d>45?22 : 15;
+        G.dest.mesh.visible=true;
+        document.getElementById('hf').style.display='';
+        document.getElementById('hd').style.display='';
+        document.getElementById('dn').textContent=G.dest.name;
+        showEval('乗車！','#00FF88',1.8);
+        const isAirport = G.dest.name.includes('空港');
+        showStatus(`「${getBoardLine(G.dest.name)}」\n➤ ${G.dest.name}${isAirport?'\n🟣 高速道路を利用してください！':''}`);
+        paxRespawnT=8;
+      }
+    });
+  }
+
+  // Passenger respawn
+  if (paxRespawnT>0) {
+    paxRespawnT-=dt;
+    if (paxRespawnT<=0) {
+      const di=G.pax.findIndex(p=>!p.active);
+      if (di>=0) {
+        const src=EXTRA_PAX[extraPaxI%EXTRA_PAX.length]; extraPaxI++;
+        G.pax[di].pos.copy(src);
+        G.pax[di].mesh.position.copy(src);
+        G.pax[di].active=true; G.pax[di].mesh.visible=true;
+      }
+    }
+  }
+
+  // Arrival check
+  if (G.carState==='RIDE') {
+    const distToDest=G.pos.distanceTo(G.dest.pos);
+    const realDist=getDistReal(G.tripDist+distToDest);
+    const curFare=calcFare(realDist);
+    document.getElementById('fv').textContent=curFare.toLocaleString();
+    document.getElementById('dd').textContent=
+      distToDest>999 ? Math.floor(distToDest/10)+'km' : Math.floor(getDistReal(distToDest))+'m';
+
+    if (G.spd>MAX_SPD*.7 && G.etTimer<=0 && Math.random()<.003)
+      showEval(isOnHwy&&Math.random()<.4?rand(HWY_LINES):rand(DRIVE_LINES), '#AADDFF', 1.4);
+
+    if (distToDest<ARRIVE_R && Math.abs(G.spd)<ARRIVE_MAX_SPD) {
+      const f=calcFare(getDistReal(G.tripDist+distToDest));
+      const kmh=G.spd*3.6;
+      let bonus=0, etxt='GOOD', ecol='#ffffff';
+      if      (kmh>55){ etxt='KAMIKAZE!'; ecol='#FFD700'; bonus=500; G.timer+=5; }
+      else if (kmh>22){ etxt='GREAT!';    ecol='#FFFF44'; bonus=200; G.timer+=2; }
+      G.earn+=f+bonus; G.deliveries++;
+      showEval(etxt, ecol, 2.8);
+      showStatus(`${rand(ARRIVE_LINES)}\n+¥${(f+bonus).toLocaleString()}`);
+      G.carState='WAIT';
+      G.dest.mesh.visible=false;
+      pickupRing.visible=false; arriveRing.visible=false;
+      document.getElementById('hf').style.display='none';
+      document.getElementById('hd').style.display='none';
+      destI=(destI+1)%DEST_POOL.length;
+      G.dest.pos.copy(DEST_POOL[destI].pos);
+      G.dest.name=DEST_POOL[destI].name;
+      G.dest.mesh.position.copy(DEST_POOL[destI].pos);
+      setTimeout(()=>{ G.carState='SEEK'; }, 2400);
+    }
+  }
+
+  if ((G.inp.dashK||G.inp.dashT)&&G.spd>8&&G.etTimer<=0)
+    showEval('神風ダッシュ！','#FF8800',.7);
+
+  G.etTimer-=dt; if(G.etTimer<=0) document.getElementById('et').style.opacity='0';
+  G.stTimer-=dt; if(G.stTimer<=0) document.getElementById('st').style.opacity='0';
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  HUD
+// ═══════════════════════════════════════════════════════════════
+function updateHUD() {
+  document.getElementById('mv').textContent=G.earn.toLocaleString();
+  const t=Math.max(0,G.timer), m=Math.floor(t/60), s=Math.floor(t%60).toString().padStart(2,'0');
+  document.getElementById('tv').textContent=`${m}:${s}`;
+  document.getElementById('ht').className=t<30?'hp red':'hp';
+  document.getElementById('sv').textContent=Math.abs(Math.floor(G.spd*3.6));
+  // 空車 / 賃走 表示
+  const st=document.getElementById('hstatus');
+  const onRide = G.carState==='RIDE'||G.carState==='WAIT';
+  st.textContent = onRide ? '賃走' : '空車';
+  st.className = 'hp '+(onRide ? 'occupied' : 'vacant');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MINIMAP – player-centred, road network aware
+// ═══════════════════════════════════════════════════════════════
+const mmCtx = document.getElementById('mm').getContext('2d');
+const MM_W=110, MM_H=110, MM_R=130; // show ±130 units from player
+
+function updateMM() {
+  const sc = MM_W/(2*MM_R);
+  const px0=MM_W/2, py0=MM_H/2;
+  mmCtx.clearRect(0,0,MM_W,MM_H);
+  mmCtx.fillStyle='#0a1218'; mmCtx.fillRect(0,0,MM_W,MM_H);
+
+  // Roads
+  ROAD_SEGS.forEach(s => {
+    const x1=px0+(s.x1-G.pos.x)*sc, y1=py0+(s.z1-G.pos.z)*sc;
+    const x2=px0+(s.x2-G.pos.x)*sc, y2=py0+(s.z2-G.pos.z)*sc;
+    mmCtx.strokeStyle = s.isHwy ? '#888' : '#404040';
+    mmCtx.lineWidth = Math.max(1, s.w*sc*0.55);
+    mmCtx.lineCap = 'round';
+    mmCtx.beginPath(); mmCtx.moveTo(x1,y1); mmCtx.lineTo(x2,y2); mmCtx.stroke();
+  });
+
+  // Passengers
+  G.pax.forEach(p => {
+    if (!p.active) return;
+    const x=px0+(p.pos.x-G.pos.x)*sc, y=py0+(p.pos.z-G.pos.z)*sc;
+    if (x<0||x>MM_W||y<0||y>MM_H) return;
+    mmCtx.fillStyle='#00FF88';
+    mmCtx.beginPath(); mmCtx.arc(x,y,3,0,Math.PI*2); mmCtx.fill();
+  });
+
+  // Destination
+  if (G.carState==='RIDE'||G.carState==='WAIT') {
+    const dx=G.dest.pos.x-G.pos.x, dz=G.dest.pos.z-G.pos.z;
+    const x=px0+dx*sc, y=py0+dz*sc;
+    if (x>=0&&x<=MM_W&&y>=0&&y<=MM_H) {
+      mmCtx.fillStyle='#FF4400';
+      mmCtx.beginPath(); mmCtx.arc(x,y,4,0,Math.PI*2); mmCtx.fill();
+    } else {
+      // Off-map: arrow at edge
+      const ang=Math.atan2(dx,dz);
+      const er=42;
+      const ex=px0+Math.sin(ang)*er, ey=py0+Math.cos(ang)*er;
+      mmCtx.fillStyle='#FF4400';
+      mmCtx.save(); mmCtx.translate(ex,ey); mmCtx.rotate(ang);
+      mmCtx.beginPath(); mmCtx.moveTo(0,-6); mmCtx.lineTo(4,4); mmCtx.lineTo(-4,4);
+      mmCtx.closePath(); mmCtx.fill();
+      mmCtx.restore();
+    }
+  }
+
+  // Player (always center)
+  mmCtx.fillStyle='#FFD700';
+  mmCtx.save(); mmCtx.translate(px0,py0); mmCtx.rotate(-G.hdg);
+  mmCtx.beginPath(); mmCtx.moveTo(0,-5); mmCtx.lineTo(3.2,4); mmCtx.lineTo(-3.2,4);
+  mmCtx.closePath(); mmCtx.fill(); mmCtx.restore();
+
+  mmCtx.strokeStyle='rgba(255,200,0,.5)'; mmCtx.lineWidth=1;
+  mmCtx.strokeRect(0,0,MM_W,MM_H);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  END / START
+// ═══════════════════════════════════════════════════════════════
+function endGame() {
+  G.phase='END';
+  const r=getRank(G.earn);
+  const RC={S:'#FFD700',A:'#FF8800',B:'#44AAFF',C:'#88FF44',D:'#FF88AA',E:'#888'};
+  document.getElementById('rr').textContent=`ランク ${r}`;
+  document.getElementById('rr').style.color=RC[r]||'#fff';
+  document.getElementById('rm').textContent=G.earn.toLocaleString();
+  document.getElementById('rl').textContent=r;
+  document.getElementById('rdeliveries').textContent=`配達数: ${G.deliveries} 回`;
+  document.getElementById('result').style.display='flex';
+}
+
+function startGame() {
+  document.getElementById('title').style.display='none';
+  document.getElementById('result').style.display='none';
+  G.phase='PLAY'; G.carState='SEEK';
+  G.timer=75; G.earn=0; G.deliveries=0;
+  G.spd=0; G.hdg=0; G.tripDist=0;
+  G.pos.set(-60,.5,0);    // 平和大通り上（全乗客から13以上離れた位置）
+  camPos.set(-60,8,13);
+  G.etTimer=0; G.stTimer=0;
+  paxRespawnT=-1; extraPaxI=0; destI=0; onHighwaySince=-1;
+  shakeTimer=0; lastHitTime=-999;
+  G.dest.pos.copy(DEST_POOL[0].pos);
+  G.dest.name=DEST_POOL[0].name;
+  G.dest.mesh.position.copy(DEST_POOL[0].pos);
+  G.dest.mesh.visible=false;
+  pickupRing.visible=false; arriveRing.visible=false;
+  G.pax.forEach((p,i) => {
+    const src=PAX_INIT[i];
+    p.pos.copy(src.pos); p.active=true;
+    p.mesh.position.set(src.pos.x,0,src.pos.z);
+    p.mesh.visible=true;
+  });
+  document.getElementById('et').style.opacity='0';
+  document.getElementById('st').style.opacity='0';
+  document.getElementById('hf').style.display='none';
+  document.getElementById('hd').style.display='none';
+  showStatus('客を探せ！\n🟢 緑マーカーに近づき\nゆっくり停車すると乗車！', 5);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  ANIMATION
+// ═══════════════════════════════════════════════════════════════
+function animateScene(ts) {
+  G.pax.forEach((p,i) => {
+    if (p.mesh) p.mesh.position.y = Math.sin(ts*.0018+i*2.1)*.22;
+  });
+  if (G.dest.mesh&&G.dest.mesh.visible) {
+    G.dest.mesh.rotation.y+=.016;
+    G.dest.mesh.position.y=Math.sin(ts*.002)*.18;
+  }
+  const s=.88+Math.sin(ts*.004)*.12;
+  pickupRing.scale.set(s,1,s); arriveRing.scale.set(s,1,s);
+  const wr=G.spd*.045;
+  wheels.forEach(w=>{ w.children[0].rotation.x+=wr; });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MAIN LOOP
+// ═══════════════════════════════════════════════════════════════
+let lastT=0;
+function loop(ts) {
+  requestAnimationFrame(loop);
+  const dt=Math.min((ts-lastT)/1000,.05); lastT=ts;
+  if (G.phase==='PLAY') {
+    G.inp.gasK  = !!(keys['KeyW']||keys['ArrowUp']);
+    G.inp.brkK  = !!(keys['KeyS']||keys['ArrowDown']);
+    G.inp.lK    = !!(keys['KeyA']||keys['ArrowLeft']);
+    G.inp.rK    = !!(keys['KeyD']||keys['ArrowRight']);
+    G.inp.dashK = !!(keys['ShiftLeft']||keys['ShiftRight']);
+    physics(dt);
+    carGrp.position.copy(G.pos);
+    carGrp.rotation.y=G.hdg;
+    updateCam(dt);
+    gameLogic(dt);
+    updateHUD();
+    updateMM();
+  }
+  animateScene(ts);
+  renderer.render(scene, cam);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RESIZE
+// ═══════════════════════════════════════════════════════════════
+addEventListener('resize', () => {
+  cam.aspect=innerWidth/innerHeight;
+  cam.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════
+buildHiroshimaMap();
+buildCar();
+buildMarkers();
+setupTouch();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
