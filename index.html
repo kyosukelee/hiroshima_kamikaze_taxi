@@ -168,7 +168,7 @@ const G = {
   dest: { pos: new THREE.Vector3(0,0,0), name:'---', mesh:null },
   inp: {
     gasK:false, brkK:false, lK:false, rK:false, dashK:false,
-    gasT:false, brkT:false, lT:false, rT:false, dashT:false, revT:false
+    gasT:false, brkT:false, lT:false, rT:false, dashT:false, revT:false, revK:false
   },
 };
 
@@ -592,7 +592,7 @@ function resolveCollisions(newX, newZ) {
 function physics(dt) {
   const i=G.inp;
   const gas=i.gasK||i.gasT, brk=i.brkK||i.brkT;
-  const rev=i.revT;  // ▼後進ボタン
+  const rev=i.revK||i.revT;  // ▼後進：キーボード or タッチ
   const lft=i.lK||i.lT, rgt=i.rK||i.rT, dash=i.dashK||i.dashT;
   const mxs = dash ? DASH_SPD : MAX_SPD;
   if (gas) {
@@ -1064,7 +1064,7 @@ function loop(ts) {
     G.inp.lK    = !!(keys['KeyA']||keys['ArrowLeft']);
     G.inp.rK    = !!(keys['KeyD']||keys['ArrowRight']);
     G.inp.dashK = !!(keys['ShiftLeft']||keys['ShiftRight']);
-    G.inp.revT  = !!(keys['KeyS']||keys['ArrowDown']);
+    G.inp.revK  = !!(keys['KeyS']||keys['ArrowDown']);
     physics(dt);
     carGrp.position.copy(G.pos);
     carGrp.rotation.y=G.hdg;
