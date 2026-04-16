@@ -14,11 +14,12 @@ body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-
 #ht{top:12px;left:50%;transform:translateX(-50%);font-size:20px;min-width:85px;text-align:center;}
 #ht.red{color:#ff4444;animation:blink .5s infinite;}
 #hc{top:12px;right:12px;color:#FF8800;font-size:18px;}
-#hs{bottom:105px;left:12px;}
-#hf{bottom:105px;right:12px;color:#88FF88;display:none;}
-#hstatus{bottom:105px;left:110px;font-size:14px;font-weight:bold;letter-spacing:.08em;}
+#hs{bottom:193px;left:12px;}
+#hs{bottom:193px;left:12px;}
+#hstatus{bottom:193px;left:110px;font-size:14px;font-weight:bold;letter-spacing:.08em;}
 #hstatus.vacant  {color:#44FF88;border-color:rgba(68,255,136,.7);}
-#hstatus.occupied{color:#FF8844;border-color:rgba(255,136,68,.7);}#hd{position:absolute;bottom:160px;left:50%;transform:translateX(-50%);
+#hstatus.occupied{color:#FF8844;border-color:rgba(255,136,68,.7);}
+#hf{bottom:193px;right:12px;color:#88FF88;display:none;}#hd{position:absolute;bottom:160px;left:50%;transform:translateX(-50%);
   background:rgba(0,0,0,.72);border:1.5px solid rgba(255,100,100,.7);
   border-radius:5px;padding:4px 14px;color:#FFB6C1;font-size:14px;
   text-align:center;display:none;white-space:nowrap;}
@@ -36,15 +37,20 @@ body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-
 #area-label{position:absolute;bottom:168px;right:12px;font-size:11px;
   color:rgba(200,220,255,.7);font-family:'DotGothic16',monospace;
   text-shadow:1px 1px 0 #000;pointer-events:none;}
-#tc{position:fixed;bottom:0;left:0;width:100%;height:88px;z-index:20;
-  display:flex;gap:4px;padding:6px 8px;}
-.tb{flex:1;background:rgba(0,0,0,.55);border:1.5px solid rgba(255,200,0,.6);
+#tc{position:fixed;bottom:0;left:0;width:100%;height:176px;z-index:20;
+  display:flex;justify-content:space-between;align-items:stretch;
+  padding:6px 8px;pointer-events:none;}
+#tc-left{display:flex;flex-direction:row;gap:4px;width:34%;pointer-events:auto;align-items:stretch;}
+#tc-right{display:flex;flex-direction:column;gap:4px;width:22%;pointer-events:auto;}
+.tb{background:rgba(0,0,0,.55);border:1.5px solid rgba(255,200,0,.6);
   border-radius:8px;color:#FFD700;font-family:'DotGothic16',monospace;
-  font-size:16px;display:flex;align-items:center;justify-content:center;
-  cursor:pointer;text-align:center;line-height:1.25;transition:background .08s;}
+  font-size:20px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;text-align:center;line-height:1.25;transition:background .08s;flex:1;}
 .tb.on,.tb:active{background:rgba(255,180,0,.3);}
-#tb-dash{flex:1.3;background:rgba(150,0,0,.4);border-color:rgba(255,80,80,.7);color:#FF9999;}
-#tb-gas {flex:1.2;background:rgba(0,80,0,.4) ;border-color:rgba(80,255,80,.7);color:#88FF88;}
+#tb-dash{background:rgba(150,0,0,.4);border-color:rgba(255,80,80,.7);color:#FF9999;font-size:13px;}
+#tb-gas {background:rgba(0,80,0,.4) ;border-color:rgba(80,255,80,.7);color:#88FF88;}
+#tb-rev {background:rgba(0,40,80,.4) ;border-color:rgba(80,160,255,.7);color:#88CCFF;}
+#tb-brk {background:rgba(80,40,0,.4) ;border-color:rgba(255,160,80,.7);color:#FFCC88;}
 .scr{position:fixed;top:0;left:0;width:100%;height:100%;z-index:100;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   font-family:'DotGothic16',monospace;}
@@ -98,11 +104,16 @@ body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-
 </div>
 
 <div id="tc">
-  <div class="tb" id="tb-l">◀</div>
-  <div class="tb" id="tb-b">▼</div>
-  <div class="tb" id="tb-dash">神風<br>DASH</div>
-  <div class="tb" id="tb-gas">▲</div>
-  <div class="tb" id="tb-r">▶</div>
+  <div id="tc-left">
+    <div class="tb" id="tb-l">◀</div>
+    <div class="tb" id="tb-r">▶</div>
+  </div>
+  <div id="tc-right">
+    <div class="tb" id="tb-dash">神風<br>DASH</div>
+    <div class="tb" id="tb-gas">▲</div>
+    <div class="tb" id="tb-brk">■</div>
+    <div class="tb" id="tb-rev">▼</div>
+  </div>
 </div>
 
 <div id="result" class="scr">
@@ -157,7 +168,7 @@ const G = {
   dest: { pos: new THREE.Vector3(0,0,0), name:'---', mesh:null },
   inp: {
     gasK:false, brkK:false, lK:false, rK:false, dashK:false,
-    gasT:false, brkT:false, lT:false, rT:false, dashT:false
+    gasT:false, brkT:false, lT:false, rT:false, dashT:false, revT:false
   },
 };
 
@@ -518,7 +529,7 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => { keys[e.code] = false; });
 
 function setupTouch() {
-  const MAP = { 'tb-l':'lT','tb-r':'rT','tb-b':'brkT','tb-gas':'gasT','tb-dash':'dashT' };
+  const MAP = { 'tb-l':'lT','tb-r':'rT','tb-brk':'brkT','tb-gas':'gasT','tb-dash':'dashT','tb-rev':'revT' };
   Object.entries(MAP).forEach(([id,key]) => {
     const el = document.getElementById(id);
     const on=()=>{ G.inp[key]=true; el.classList.add('on'); };
@@ -581,12 +592,19 @@ function resolveCollisions(newX, newZ) {
 function physics(dt) {
   const i=G.inp;
   const gas=i.gasK||i.gasT, brk=i.brkK||i.brkT;
+  const rev=i.revT;  // ▼後進ボタン
   const lft=i.lK||i.lT, rgt=i.rK||i.rT, dash=i.dashK||i.dashT;
   const mxs = dash ? DASH_SPD : MAX_SPD;
   if (gas) {
+    // ▲前進
     G.spd = G.spd<0 ? G.spd+BRAKE_F*dt : Math.min(G.spd+(dash?ACCEL*2.2:ACCEL)*dt, mxs);
-  } else if (brk) {
+  } else if (rev) {
+    // ▼後進：速度をマイナス方向へ
     G.spd = G.spd>0 ? G.spd-BRAKE_F*dt : Math.max(G.spd-ACCEL*.55*dt,-9);
+  } else if (brk) {
+    // ■ブレーキ：進行方向に関わらず強制減速→停止
+    const f=BRAKE_F*dt;
+    G.spd = Math.abs(G.spd)<f ? 0 : G.spd-Math.sign(G.spd)*f;
   } else {
     const f=FRICTION*dt;
     G.spd = Math.abs(G.spd)<f ? 0 : G.spd-Math.sign(G.spd)*f;
@@ -1042,10 +1060,11 @@ function loop(ts) {
   const dt=Math.min((ts-lastT)/1000,.05); lastT=ts;
   if (G.phase==='PLAY') {
     G.inp.gasK  = !!(keys['KeyW']||keys['ArrowUp']);
-    G.inp.brkK  = !!(keys['KeyS']||keys['ArrowDown']);
+    G.inp.brkK  = !!(keys['Space']);
     G.inp.lK    = !!(keys['KeyA']||keys['ArrowLeft']);
     G.inp.rK    = !!(keys['KeyD']||keys['ArrowRight']);
     G.inp.dashK = !!(keys['ShiftLeft']||keys['ShiftRight']);
+    G.inp.revT  = !!(keys['KeyS']||keys['ArrowDown']);
     physics(dt);
     carGrp.position.copy(G.pos);
     carGrp.rotation.y=G.hdg;
