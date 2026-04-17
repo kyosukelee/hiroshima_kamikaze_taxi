@@ -255,14 +255,17 @@ function buildRoadSeg(x1, z1, x2, z2, width, mat, isHwy=false) {
   const road = mk(new THREE.BoxGeometry(width, 0.06, len), mat, cx, yOff, cz);
   road.rotation.y = angle; scene.add(road);
 
-  // Center dashed lines (every 22 units, skip for very narrow roads)
-  if (width >= 9) {
+  // Center dashed lines (skip for 平和大通り = tram route at z=0)
+  const isTramRoute = (z1 === 0 && z2 === 0);
+  if (width >= 9 && !isTramRoute) {
     const nL = Math.floor(len/22);
     const dashMat = isHwy ? mkMat(0xFFFFAA) : lineMat;
     for (let i=0; i<nL; i++) {
       const t = (i+0.5)/nL;
-      const lm = mk(new THREE.BoxGeometry(0.35, 0.07, isHwy?10:7), dashMat,
-                    x1+dx*t, yOff+0.02, z1+dz*t);
+      const lx = x1+dx*t, lz = z1+dz*t;
+      // 平和大通り（z=0 ±7）との交差部分はスキップ
+      if (Math.abs(lz) < 7.5) continue;
+      const lm = mk(new THREE.BoxGeometry(0.35, 0.07, isHwy?10:7), dashMat, lx, yOff+0.02, lz);
       lm.rotation.y = angle; scene.add(lm);
     }
     // Highway solid edge lines
@@ -600,8 +603,312 @@ function buildPeaceMuseum() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  TAXI MODEL
+//  TRAM (広電) NPC
 // ═══════════════════════════════════════════════════════════════
+const TRAM_ROUTES = [
+  { x1:-155, z1:0, x2:115, z2:0, spd:10, t:0.0 },
+];
+
+const TRAM_NEAR_R  = 9;   // ニアミス判定半径
+const TRAM_HIT_R   = 4.5; // 衝突判定半径
+let tramLastNearMs = -999;// ニアミスクールダウン
+let shakeTimer    = 0;    // camera shake duration
+let lastHitTime   = -999; // collision cooldown
+
+const trams = []; // [{mesh, route, t, dir}]
+
+function buildTrams() {
+  TRAM_ROUTES.forEach((route, ri) => {
+    const grp = new THREE.Group();
+
+    // 車体
+    const bodyM  = mkMat(0x1E7A1E); // 広電グリーン
+    const whiteM = mkMat(0xEEEEEE);
+    const winM   = mkMat(0x334455);
+    const wheelM = mkMat(0x222222);
+
+    // メイン車体
+    grp.add(mk(new THREE.BoxGeometry(3.2, 2.4, 9.5), bodyM,   0, 1.5, 0));
+    // 白帯（上下2本）
+    grp.add(mk(new THREE.BoxGeometry(3.22,.35, 9.52), whiteM, 0, 2.55, 0));
+    grp.add(mk(new THREE.BoxGeometry(3.22,.25, 9.52), whiteM, 0, 0.72, 0));
+    // 屋根
+    grp.add(mk(new THREE.BoxGeometry(3.0, .35, 9.6),  mkMat(0x156015), 0, 2.78, 0));
+    // 前後窓
+    [-4.76, 4.76].forEach(oz => {
+      grp.add(mk(new THREE.BoxGeometry(2.4, 1.1, .15), winM, 0, 1.8, oz));
+    });
+    // 側面窓（3枚×両側）
+    [-3,-3].forEach(() => {}); // dummy
+    [-2.8, 0, 2.8].forEach(oz2 => {
+      grp.add(mk(new THREE.BoxGeometry(.15, .9, 2.0), winM,  1.62, 1.75, oz2));
+      grp.add(mk(new THREE.BoxGeometry(.15, .9, 2.0), winM, -1.62, 1.75, oz2));
+    });
+    // 行先表示板（前面）
+    grp.add(mk(new THREE.BoxGeometry(1.4, .45, .18), mkMat(0xFFEE00), 0, 2.55, -4.78));
+    // 台車（前後）
+    [-3, 3].forEach(oz => {
+      grp.add(mk(new THREE.BoxGeometry(3.4, .4, 2.8), mkMat(0x444444), 0, .2, oz));
+      // 車輪×4
+      [-1.5, 1.5].forEach(ox => {
+        [-0.9, 0.9].forEach(oz2 => {
+          const w = new THREE.Mesh(
+            new THREE.CylinderGeometry(.45,.45,.32,10),
+            new THREE.MeshLambertMaterial({color:0x222222})
+          );
+          w.rotation.z = Math.PI/2;
+          w.position.set(ox, .45, oz+oz2);
+          grp.add(w);
+        });
+      });
+    });
+    // パンタグラフ（屋根上）
+    grp.add(mk(new THREE.BoxGeometry(.12, 1.0, .12), mkMat(0x888888), 0, 3.4, -1.5));
+    grp.add(mk(new THREE.BoxGeometry(2.2, .12, .12), mkMat(0x888888), 0, 3.9, -1.5));
+
+    // 初期位置を設定
+    const len = Math.hypot(route.x2-route.x1, route.z2-route.z1);
+    const dx = (route.x2-route.x1)/len, dz = (route.z2-route.z1)/len;
+    const t0 = route.t;
+    const ix = route.x1 + dx*len*t0;
+    const iz = route.z1 + dz*len*t0;
+    grp.position.set(ix, 0, iz);
+    // 進行方向に向ける（-Z方向が前）
+    grp.rotation.y = Math.atan2(-dx, -dz);
+    scene.add(grp);
+
+    trams.push({ mesh:grp, route, t:t0, dir:1 });
+  });
+}
+
+function updateTrams(dt) {
+  if (G.phase !== 'PLAY') return;
+  trams.forEach(tr => {
+    const r   = tr.route;
+    const len = Math.hypot(r.x2-r.x1, r.z2-r.z1);
+    const dx  = (r.x2-r.x1)/len, dz = (r.z2-r.z1)/len;
+
+    // 位置を進める
+    tr.t += tr.dir * r.spd * dt / len;
+
+    // 端点で折返し
+    if (tr.t >= 1) { tr.t = 1; tr.dir = -1; }
+    if (tr.t <= 0) { tr.t = 0; tr.dir =  1; }
+
+    const tx = r.x1 + dx*len*tr.t;
+    const tz = r.z1 + dz*len*tr.t;
+    tr.mesh.position.set(tx, 0, tz);
+
+    // 向き（進行方向）
+    const fdx = dx * tr.dir, fdz = dz * tr.dir;
+    tr.mesh.rotation.y = Math.atan2(-fdx, -fdz);
+
+    // ── プレイヤーとの衝突 / ニアミス ─────────────────────
+    const dist = Math.hypot(G.pos.x - tx, G.pos.z - tz);
+
+    if (dist < TRAM_HIT_R) {
+      // 衝突：スピンアウト
+      const now = G.timer;
+      if (now - lastHitTime > 0.5) {
+        lastHitTime = now;
+        G.spd *= -0.35;
+        showEval('広電に衝突！', '#FF4444', 1.6);
+        shakeTimer = 0.45;
+        G.combo = 1.0;
+      }
+    } else if (dist < TRAM_NEAR_R && G.phase === 'PLAY') {
+      // ニアミス（Phase3コンボフック）
+      const now = G.timer;
+      if (now - tramLastNearMs > 2.0) {
+        tramLastNearMs = now;
+        showEval('広電ニアミス！', '#44AAFF', 1.4);
+      }
+    }
+  });
+}
+
+// 線路（レール）を平和大通りに敷設
+function buildTramTracks() {
+  const railM    = mkMat(0x777770);
+  const tieM     = mkMat(0x554433);
+  const concrM   = mkMat(0xCCCABE); // コンクリート色（明るいグレー）
+  const yellowM  = mkMat(0xEECC00); // 黄色縁石
+  const x1=-160, x2=120, z=0;
+  const len = x2 - x1;
+  const cx  = (x1+x2)/2;
+
+  // ── 路面電車専用帯（コンクリート色・わずかに隆起） ───────
+  const zone = mk(new THREE.PlaneGeometry(len, 5.0), concrM, cx, .018, z);
+  zone.rotation.x = -Math.PI/2;
+  scene.add(zone);
+
+  // 専用帯の隆起エッジ（薄いBoxで段差表現）
+  [-2.55, 2.55].forEach(oz => {
+    const edge = mk(new THREE.BoxGeometry(len, .08, .18), mkMat(0xBBB9AD), cx, .04, z+oz);
+    scene.add(edge);
+  });
+
+  // ── 黄色縁石（車道との境界）────────────────────────────
+  [-2.7, 2.7].forEach(oz => {
+    // 縁石ブロック（断続的に配置）
+    const blockCount = Math.floor(len / 4);
+    for (let i=0; i<blockCount; i++) {
+      const tx = x1 + (i+0.5)*(len/blockCount);
+      const curb = mk(new THREE.BoxGeometry(2.4,.18,.28), yellowM, tx, .09, z+oz);
+      scene.add(curb);
+    }
+  });
+
+  // ── 枕木 ─────────────────────────────────────────────
+  const tieCount = Math.floor(len / 4.5);
+  for (let i=0; i<=tieCount; i++) {
+    const tx = x1 + i*(len/tieCount);
+    scene.add(mk(new THREE.BoxGeometry(.28, .1, 3.6), tieM, tx, .12, z));
+  }
+
+  // ── レール2本 ──────────────────────────────────────────
+  [-1.15, 1.15].forEach(oz => {
+    scene.add(mk(new THREE.BoxGeometry(len, .12, .16), railM, cx, .2, z+oz));
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  NPC VEHICLES (一般車両)
+// ═══════════════════════════════════════════════════════════════
+// 配置ルート：平和大通り(z=0)を除く主要道路
+// [x1,z1, x2,z2, lane_offset, speed, startT]
+// lane_offset: 道路中心からの横ずれ（対向車線）
+const NPC_ROUTES = [
+  { x1:-90,z1:22,  x2:80,  z2:22,  lo: 2.5, spd:8,  t:0.1 }, // 八丁堀通り 東行き
+  { x1: 80,z1:22,  x2:-90, z2:22,  lo:-2.5, spd:7,  t:0.5 }, // 八丁堀通り 西行き
+  { x1:  0,z1:20,  x2:  0, z2:-70, lo: 2.5, spd:9,  t:0.2 }, // 相生通り 南行き
+  { x1:  0,z1:-70, x2:  0, z2: 90, lo:-2.5, spd:8,  t:0.7 }, // 相生通り 北行き
+  { x1: 24,z1:60,  x2: 24, z2:-60, lo: 2.5, spd:9,  t:0.3 }, // 城東通り 南行き
+  { x1: 62,z1:60,  x2: 62, z2:-5,  lo:-2.5, spd:10, t:0.6 }, // 駅前大通り 南行き
+  { x1:-45,z1:60,  x2:-45, z2:-10, lo: 2.5, spd:7,  t:0.4 }, // 平和通り 南行き
+  { x1:-100,z1:55, x2: 60, z2:55,  lo:-2.5, spd:8,  t:0.8 }, // 南部横断道 東行き
+];
+
+// 車体色パレット
+const NPC_COLORS = [
+  0xCC3333, 0x3355CC, 0x228833, 0xCCAA22,
+  0x888888, 0xCC6622, 0x44AACC, 0xCC4488,
+];
+
+const NPC_HIT_R  = 4.0;
+const NPC_NEAR_R = 7.0;
+let npcLastNearMs = -999;
+const npcs = [];
+
+function buildNpcVehicle(route, idx) {
+  const grp  = new THREE.Group();
+  const col  = NPC_COLORS[idx % NPC_COLORS.length];
+  const bodyM = mkMat(col);
+  const dkM   = mkMat(0x1A2A38);
+  const gmM   = mkMat(0x777777);
+  const hlM   = mkMat(0xFFFFBB);
+  const tlM   = mkMat(0xFF2200);
+
+  // 車種をindexで分ける（0-2:セダン, 3-5:ワゴン, 6-7:軽）
+  const type = idx % 3; // 0:セダン 1:ワゴン 2:軽
+  const bw = type===2 ? 1.7 : 2.0;
+  const bh = type===1 ? 0.75: 0.65;
+  const bl = type===2 ? 3.2 : type===1 ? 4.4 : 3.8;
+  const ch = type===1 ? 0.7 : 0.62;
+  const cl = type===1 ? 2.8 : 2.0;
+
+  // ボディ
+  grp.add(mk(new THREE.BoxGeometry(bw, bh, bl), bodyM, 0, .55, 0));
+  // キャビン
+  grp.add(mk(new THREE.BoxGeometry(bw*.88, ch, cl), bodyM, 0, bh+ch/2+.05, type===1?-.2:.1));
+  // 前後窓
+  const ww = bw*.82;
+  grp.add(mk(new THREE.BoxGeometry(ww,.42,.1), dkM, 0, bh+.22, -(cl/2+.05)));
+  grp.add(mk(new THREE.BoxGeometry(ww,.38,.1), dkM, 0, bh+.18,   cl/2+.05));
+  // バンパー
+  grp.add(mk(new THREE.BoxGeometry(bw*.88,.28,.16), gmM, 0,.28,-(bl/2+.08)));
+  grp.add(mk(new THREE.BoxGeometry(bw*.88,.28,.16), gmM, 0,.28,  bl/2+.08));
+  // ライト
+  [-.55,.55].forEach(ox => {
+    grp.add(mk(new THREE.BoxGeometry(.38,.22,.12), hlM,  ox*.9*bw, .55,-(bl/2+.07)));
+    grp.add(mk(new THREE.BoxGeometry(.38,.18,.12), tlM,  ox*.9*bw, .55,  bl/2+.07));
+  });
+  // タイヤ
+  const wkGeo = new THREE.CylinderGeometry(.38,.38,.3,8);
+  const wkM   = mkMat(0x1A1A1A);
+  [[-bw/2-.16,.38,-(bl/2-.7)],[bw/2+.16,.38,-(bl/2-.7)],
+   [-bw/2-.16,.38,  bl/2-.7 ],[bw/2+.16,.38,  bl/2-.7 ]].forEach(([wx,wy,wz])=>{
+    const wm = new THREE.Mesh(wkGeo, wkM);
+    wm.rotation.z = Math.PI/2;
+    wm.position.set(wx,wy,wz);
+    grp.add(wm);
+  });
+
+  // 初期位置
+  const r = route;
+  const len = Math.hypot(r.x2-r.x1, r.z2-r.z1);
+  const dx = (r.x2-r.x1)/len, dz = (r.z2-r.z1)/len;
+  // 車線オフセット（道路の横方向）
+  const nx = -dz, nz = dx;
+  const ix = r.x1 + dx*len*r.t + nx*r.lo;
+  const iz = r.z1 + dz*len*r.t + nz*r.lo;
+  grp.position.set(ix, 0, iz);
+  grp.rotation.y = Math.atan2(-dx, -dz);
+  scene.add(grp);
+
+  npcs.push({ mesh:grp, route:r, t:r.t, dir:1, wheels: grp.children.filter((_,i)=>i>=8) });
+}
+
+function buildNpcs() {
+  NPC_ROUTES.forEach((route, i) => buildNpcVehicle(route, i));
+}
+
+function updateNpcs(dt) {
+  if (G.phase !== 'PLAY') return;
+  npcs.forEach(npc => {
+    const r   = npc.route;
+    const len = Math.hypot(r.x2-r.x1, r.z2-r.z1);
+    const dx  = (r.x2-r.x1)/len, dz = (r.z2-r.z1)/len;
+    const nx  = -dz, nz = dx;
+
+    npc.t += npc.dir * r.spd * dt / len;
+    if (npc.t >= 1) { npc.t = 1; npc.dir = -1; }
+    if (npc.t <= 0) { npc.t = 0; npc.dir =  1; }
+
+    const tx = r.x1 + dx*len*npc.t + nx*r.lo;
+    const tz = r.z1 + dz*len*npc.t + nz*r.lo;
+    npc.mesh.position.set(tx, 0, tz);
+
+    // 向き
+    const fdx = dx*npc.dir, fdz = dz*npc.dir;
+    npc.mesh.rotation.y = Math.atan2(-fdx, -fdz);
+
+    // タイヤ回転
+    const wr = r.spd * npc.dir * .04;
+    npc.mesh.children.forEach((c,i) => {
+      if (i >= 8) c.rotation.x += wr;
+    });
+
+    // 衝突判定
+    const dist = Math.hypot(G.pos.x - tx, G.pos.z - tz);
+    if (dist < NPC_HIT_R) {
+      const now = G.timer;
+      if (now - lastHitTime > 0.5) {
+        lastHitTime = now;
+        G.spd *= -0.3;
+        showEval('衝突！', '#FF4444', 1.2);
+        shakeTimer = 0.32;
+        G.combo = 1.0;
+      }
+    } else if (dist < NPC_NEAR_R) {
+      const now = G.timer;
+      if (now - npcLastNearMs > 1.5) {
+        npcLastNearMs = now;
+        showEval('ニアミス！', '#FF8800', 1.2);
+      }
+    }
+  });
+}
 let carGrp, wheels = [];
 function buildCar() {
   carGrp = new THREE.Group();
@@ -762,9 +1069,6 @@ function setupTouch() {
 // ═══════════════════════════════════════════════════════════════
 //  COLLISION
 // ═══════════════════════════════════════════════════════════════
-let shakeTimer = 0;     // camera shake duration
-let lastHitTime = -999; // prevent repeated hit sounds/effects
-
 function resolveCollisions(newX, newZ) {
   let rx = newX, rz = newZ;
   let hit = false;
@@ -1231,7 +1535,24 @@ function startGame() {
   camPos.set(-60,8,13);
   G.etTimer=0; G.stTimer=0;
   paxRespawnT=-1; extraPaxI=0; destI=0; onHighwaySince=-1;
-  shakeTimer=0; lastHitTime=-999;
+  shakeTimer=0; lastHitTime=-999; tramLastNearMs=-999; npcLastNearMs=-999;
+  // 路面電車リセット
+  trams.forEach((tr)=>{
+    const r=tr.route, len=Math.hypot(r.x2-r.x1,r.z2-r.z1);
+    const dx=(r.x2-r.x1)/len, dz=(r.z2-r.z1)/len;
+    tr.t=r.t; tr.dir=1;
+    tr.mesh.position.set(r.x1+dx*len*r.t, 0, r.z1+dz*len*r.t);
+    tr.mesh.rotation.y=Math.atan2(-dx,-dz);
+  });
+  // NPC車両リセット
+  npcs.forEach(npc=>{
+    const r=npc.route, len=Math.hypot(r.x2-r.x1,r.z2-r.z1);
+    const dx=(r.x2-r.x1)/len, dz=(r.z2-r.z1)/len;
+    const nx=-dz, nz=dx;
+    npc.t=r.t; npc.dir=1;
+    npc.mesh.position.set(r.x1+dx*len*r.t+nx*r.lo, 0, r.z1+dz*len*r.t+nz*r.lo);
+    npc.mesh.rotation.y=Math.atan2(-dx,-dz);
+  });
   G.dest.pos.copy(DEST_POOL[0].pos);
   G.dest.name=DEST_POOL[0].name;
   G.dest.mesh.position.copy(DEST_POOL[0].pos);
@@ -1285,6 +1606,8 @@ function loop(ts) {
     carGrp.position.copy(G.pos);
     carGrp.rotation.y=G.hdg;
     updateCam(dt);
+    updateTrams(dt);
+    updateNpcs(dt);
     gameLogic(dt);
     updateHUD();
     updateMM();
@@ -1306,6 +1629,9 @@ addEventListener('resize', () => {
 //  INIT
 // ═══════════════════════════════════════════════════════════════
 buildHiroshimaMap();
+buildTramTracks();
+buildTrams();
+buildNpcs();
 buildCar();
 buildMarkers();
 setupTouch();
