@@ -779,14 +779,14 @@ function buildTramTracks() {
 // [x1,z1, x2,z2, lane_offset, speed, startT]
 // lane_offset: 道路中心からの横ずれ（対向車線）
 const NPC_ROUTES = [
-  { x1:-90,z1:22,  x2:80,  z2:22,  lo: 2.5, spd:8,  t:0.1 }, // 八丁堀通り 東行き
-  { x1: 80,z1:22,  x2:-90, z2:22,  lo:-2.5, spd:7,  t:0.5 }, // 八丁堀通り 西行き
-  { x1:  0,z1:20,  x2:  0, z2:-70, lo: 2.5, spd:9,  t:0.2 }, // 相生通り 南行き
-  { x1:  0,z1:-70, x2:  0, z2: 90, lo:-2.5, spd:8,  t:0.7 }, // 相生通り 北行き
-  { x1: 24,z1:60,  x2: 24, z2:-60, lo: 2.5, spd:9,  t:0.3 }, // 城東通り 南行き
-  { x1: 62,z1:60,  x2: 62, z2:-5,  lo:-2.5, spd:10, t:0.6 }, // 駅前大通り 南行き
-  { x1:-45,z1:60,  x2:-45, z2:-10, lo: 2.5, spd:7,  t:0.4 }, // 平和通り 南行き
-  { x1:-100,z1:55, x2: 60, z2:55,  lo:-2.5, spd:8,  t:0.8 }, // 南部横断道 東行き
+  { x1:-90,z1:22,  x2:80,  z2:22,  lo:-2.5, spd:8,  t:0.1 }, // 八丁堀通り 東行き（左側）
+  { x1: 80,z1:22,  x2:-90, z2:22,  lo:-2.5, spd:7,  t:0.5 }, // 八丁堀通り 西行き（左側）
+  { x1:  0,z1:20,  x2:  0, z2:-70, lo:-2.5, spd:9,  t:0.2 }, // 相生通り 南行き（左側）
+  { x1:  0,z1:-70, x2:  0, z2: 90, lo:-2.5, spd:8,  t:0.7 }, // 相生通り 北行き（左側）
+  { x1: 24,z1:60,  x2: 24, z2:-60, lo:-2.5, spd:9,  t:0.3 }, // 城東通り 南行き（左側）
+  { x1: 62,z1:60,  x2: 62, z2:-5,  lo:-2.5, spd:10, t:0.6 }, // 駅前大通り 南行き（左側）
+  { x1:-45,z1:60,  x2:-45, z2:-10, lo:-2.5, spd:7,  t:0.4 }, // 平和通り 南行き（左側）
+  { x1:-100,z1:55, x2: 60, z2:55,  lo:-2.5, spd:8,  t:0.8 }, // 南部横断道 東行き（左側）
 ];
 
 // 車体色パレット
@@ -875,8 +875,8 @@ function updateNpcs(dt) {
     if (npc.t >= 1) { npc.t = 1; npc.dir = -1; }
     if (npc.t <= 0) { npc.t = 0; npc.dir =  1; }
 
-    const tx = r.x1 + dx*len*npc.t + nx*r.lo;
-    const tz = r.z1 + dz*len*npc.t + nz*r.lo;
+    const tx = r.x1 + dx*len*npc.t + nx*(npc.dir * r.lo);
+    const tz = r.z1 + dz*len*npc.t + nz*(npc.dir * r.lo);
     npc.mesh.position.set(tx, 0, tz);
 
     // 向き
@@ -1550,7 +1550,7 @@ function startGame() {
     const dx=(r.x2-r.x1)/len, dz=(r.z2-r.z1)/len;
     const nx=-dz, nz=dx;
     npc.t=r.t; npc.dir=1;
-    npc.mesh.position.set(r.x1+dx*len*r.t+nx*r.lo, 0, r.z1+dz*len*r.t+nz*r.lo);
+    npc.mesh.position.set(r.x1+dx*len*r.t+nx*(1*r.lo), 0, r.z1+dz*len*r.t+nz*(1*r.lo));
     npc.mesh.rotation.y=Math.atan2(-dx,-dz);
   });
   G.dest.pos.copy(DEST_POOL[0].pos);
