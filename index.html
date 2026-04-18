@@ -4,98 +4,122 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>広島神風タクシー</title>
-<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
+:root{
+  --font:'Noto Sans JP','Hiragino Kaku Gothic ProN','Meiryo',sans-serif;
+  --primary:#1A6BC4;   /* メインブルー */
+  --accent:#3AABF0;    /* アクセントブルー */
+  --dark:#0D1B2A;
+  --card-bg:#FFFFFF;
+  --page-bg:#EAF4FF;   /* 淡いブルー白 */
+}
 *{margin:0;padding:0;box-sizing:border-box;}
-body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;}
-#hud{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;font-family:'DotGothic16',monospace;}
-.hp{position:absolute;background:rgba(0,0,0,.72);border:1.5px solid rgba(255,200,0,.7);border-radius:5px;padding:4px 10px;color:#fff;font-size:15px;}
-#hm{top:12px;left:12px;color:#FFD700;font-size:18px;}
-#ht{top:12px;left:50%;transform:translateX(-50%);font-size:20px;min-width:85px;text-align:center;}
-#ht.red{color:#ff4444;animation:blink .5s infinite;}
-#hc{top:12px;right:12px;color:#FF8800;font-size:18px;}
+body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;font-family:var(--font);}
+
+/* ── HUD（ゲーム中オーバーレイ）────────────────── */
+#hud{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;font-family:var(--font);}
+.hp{position:absolute;background:rgba(15,15,25,.78);border:1.5px solid rgba(255,220,100,.6);
+  border-radius:6px;padding:4px 10px;color:#fff;font-size:14px;font-weight:700;}
+#hm{top:12px;left:12px;color:#FFD060;font-size:17px;}
+#ht{top:12px;left:50%;transform:translateX(-50%);font-size:19px;min-width:82px;text-align:center;}
+#ht.red{color:#ff5555;animation:blink .5s infinite;}
+#hc{top:12px;right:12px;color:#FF9020;font-size:17px;}
 #hs{bottom:193px;left:12px;}
-#hs{bottom:193px;left:12px;}
-#hstatus{bottom:193px;left:110px;font-size:14px;font-weight:bold;letter-spacing:.08em;}
-#hstatus.vacant  {color:#44FF88;border-color:rgba(68,255,136,.7);}
-#hstatus.occupied{color:#FF8844;border-color:rgba(255,136,68,.7);}
-#hf{bottom:193px;right:12px;color:#88FF88;display:none;}#hd{position:absolute;bottom:160px;left:50%;transform:translateX(-50%);
-  background:rgba(0,0,0,.72);border:1.5px solid rgba(255,100,100,.7);
-  border-radius:5px;padding:4px 14px;color:#FFB6C1;font-size:14px;
+#hstatus{bottom:193px;left:108px;font-size:13px;font-weight:700;}
+#hstatus.vacant  {color:#44FF88;border-color:rgba(68,255,136,.6);}
+#hstatus.occupied{color:#FFAA44;border-color:rgba(255,170,68,.6);}
+#hf{bottom:193px;right:12px;color:#88FFAA;display:none;}
+#hd{position:absolute;bottom:160px;left:50%;transform:translateX(-50%);
+  background:rgba(15,15,25,.78);border:1.5px solid rgba(255,120,120,.6);
+  border-radius:6px;padding:4px 14px;color:#FFCCCC;font-size:14px;font-weight:700;
   text-align:center;display:none;white-space:nowrap;}
 #et{position:absolute;top:36%;left:50%;transform:translate(-50%,-50%);
-  font-size:42px;font-family:'DotGothic16',monospace;font-weight:bold;
-  text-shadow:3px 3px 0 #000,-2px -2px 0 #000;
-  pointer-events:none;opacity:0;letter-spacing:.05em;}
+  font-size:40px;font-weight:900;
+  text-shadow:3px 3px 0 rgba(0,0,0,.7),-1px -1px 0 rgba(0,0,0,.4);
+  pointer-events:none;opacity:0;letter-spacing:.04em;}
 #st{position:absolute;top:52%;left:50%;transform:translateX(-50%);
-  font-size:14px;font-family:'DotGothic16',monospace;color:#fff;
-  text-shadow:2px 2px 0 #000;text-align:center;pointer-events:none;
-  opacity:0;white-space:pre-line;line-height:1.6;}
-#mm{position:absolute;top:62px;right:12px;width:110px;height:110px;
-  background:rgba(0,18,30,.88);border:1.5px solid rgba(255,200,0,.7);
-  border-radius:4px;overflow:hidden;}
-#area-label{position:absolute;bottom:168px;right:12px;font-size:11px;
-  color:rgba(200,220,255,.7);font-family:'DotGothic16',monospace;
-  text-shadow:1px 1px 0 #000;pointer-events:none;}
+  font-size:14px;font-weight:700;color:#fff;
+  text-shadow:1px 1px 3px rgba(0,0,0,.9);text-align:center;pointer-events:none;
+  opacity:0;white-space:pre-line;line-height:1.7;}
+#mm{position:absolute;top:60px;right:12px;width:110px;height:110px;
+  background:rgba(10,20,30,.88);border:1.5px solid rgba(255,220,100,.6);
+  border-radius:5px;overflow:hidden;}
+#area-label{position:absolute;bottom:168px;right:12px;font-size:11px;font-weight:700;
+  color:rgba(220,235,255,.75);text-shadow:1px 1px 2px rgba(0,0,0,.8);pointer-events:none;}
+
+/* ── タッチコントロール ────────────────────────── */
 #tc{position:fixed;bottom:0;left:0;width:100%;height:176px;z-index:20;
   display:flex;justify-content:space-between;align-items:stretch;
   padding:6px 8px;pointer-events:none;}
 #tc-left{display:flex;flex-direction:row;gap:4px;width:28%;pointer-events:auto;align-items:stretch;height:calc(50% - 2px);align-self:flex-end;}
 #tc-mid{display:flex;flex-direction:column;width:20%;pointer-events:auto;height:calc(50% - 2px);align-self:flex-end;}
 #tc-right{display:flex;flex-direction:column;gap:4px;width:28%;pointer-events:auto;}
-.tb{background:rgba(0,0,0,.55);border:1.5px solid rgba(255,200,0,.6);
-  border-radius:8px;color:#FFD700;font-family:'DotGothic16',monospace;
+.tb{background:rgba(20,20,30,.6);border:1.5px solid rgba(255,220,100,.55);
+  border-radius:10px;color:#FFD060;font-family:var(--font);font-weight:700;
   font-size:20px;display:flex;align-items:center;justify-content:center;
   cursor:pointer;text-align:center;line-height:1.25;transition:background .08s;flex:1;}
-.tb.on,.tb:active{background:rgba(255,180,0,.3);}
-#tb-dash{background:rgba(150,0,0,.4);border-color:rgba(255,80,80,.7);color:#FF9999;font-size:13px;}
-#tb-gas {background:rgba(0,80,0,.4) ;border-color:rgba(80,255,80,.7);color:#88FF88;}
-#tb-rev {background:rgba(0,40,80,.4) ;border-color:rgba(80,160,255,.7);color:#88CCFF;}
-#tb-brk {background:rgba(80,40,0,.4) ;border-color:rgba(255,160,80,.7);color:#FFCC88;}
-.scr{position:fixed;top:0;left:0;width:100%;height:100%;z-index:100;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  font-family:'DotGothic16',monospace;}
-#title{background:linear-gradient(160deg,#1a1a2e 0%,#16213e 60%,#0f3460 100%);}
-#title h1{font-size:30px;color:#FFD700;text-shadow:4px 4px 0 #cc0000;
-  text-align:center;line-height:1.55;margin-bottom:6px;}
-#title .sub{color:#aaa;font-size:13px;margin-bottom:6px;}
-#title .sub2{color:rgba(100,200,255,.8);font-size:11px;margin-bottom:20px;}
-.op{color:#ccc;font-size:13px;margin:3px 12px;text-align:center;}
-.op b{color:#FFD700;}
-.start-btn{margin-top:22px;padding:14px 48px;font-size:22px;
-  font-family:'DotGothic16',monospace;
-  background:linear-gradient(135deg,#cc0000,#ff4444);
-  color:#fff;border:none;border-radius:8px;cursor:pointer;
-  box-shadow:0 4px 0 #880000;letter-spacing:.05em;}
-.start-btn:active{transform:translateY(2px);box-shadow:0 2px 0 #880000;}
-#result{background:rgba(0,0,0,.93);display:none;}
-#result h1{font-size:54px;text-shadow:3px 3px 0 #000;margin-bottom:18px;}
-.rd{font-size:22px;color:#fff;margin:6px 0;}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
-@keyframes comboPulse{0%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.22)}100%{transform:translate(-50%,-50%) scale(1)}}
-/* ── キャラ選択 ──────────────────────────────── */
-#charsel{background:linear-gradient(160deg,#1a1a2e 0%,#0f3460 100%);display:none;overflow-y:auto;}
-#charsel h2{font-size:22px;color:#FFD700;margin-bottom:14px;text-align:center;}
-.char-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;width:min(520px,96vw);padding:0 8px;}
-.char-card{background:rgba(0,0,0,.55);border:2px solid rgba(255,200,0,.5);border-radius:10px;
-  padding:10px 12px;cursor:pointer;transition:border-color .15s,background .15s;text-align:center;}
-.char-card:hover,.char-card.sel{border-color:#FFD700;background:rgba(255,200,0,.18);}
-.char-card .cn{font-size:15px;color:#FFD700;margin-bottom:4px;}
-.char-card .cq{font-size:11px;color:#aaa;margin-bottom:6px;}
-.char-car{width:48px;height:28px;border-radius:4px;margin:0 auto 6px;border:1.5px solid rgba(255,255,255,.25);}
-.stat-row{display:flex;align-items:center;gap:5px;margin:2px 0;font-size:11px;}
-.stat-lbl{width:30px;color:#ccc;text-align:left;}
-.stat-bar{flex:1;height:7px;background:rgba(255,255,255,.12);border-radius:3px;overflow:hidden;}
-.stat-fill{height:100%;border-radius:3px;transition:width .3s;}
+.tb.on,.tb:active{background:rgba(255,180,0,.35);}
+#tb-dash{background:rgba(140,0,0,.5);border-color:rgba(255,80,80,.65);color:#FF9999;font-size:13px;}
+#tb-gas {background:rgba(0,90,10,.5) ;border-color:rgba(80,255,100,.65);color:#88FF88;}
+#tb-rev {background:rgba(0,40,90,.5) ;border-color:rgba(80,160,255,.65);color:#88CCFF;}
+#tb-brk {background:rgba(80,40,0,.5) ;border-color:rgba(255,160,60,.65);color:#FFCC88;}
+
 /* ── 乗客タイマーバー ─────────────────────────── */
 #pax-bar{position:absolute;bottom:198px;left:50%;transform:translateX(-50%);
-  width:180px;height:6px;background:rgba(0,0,0,.5);border-radius:3px;display:none;overflow:hidden;}
-#pax-fill{height:100%;background:#44FF88;border-radius:3px;transition:width .1s linear;}
-/* ── ご当地イベント ───────────────────────────── */
-#local-event{position:absolute;top:48px;left:50%;transform:translateX(-50%);
-  background:rgba(0,0,0,.78);border:1.5px solid rgba(255,200,100,.7);border-radius:6px;
-  padding:5px 14px;font-size:13px;color:#FFE088;font-family:'DotGothic16',monospace;
-  text-align:center;pointer-events:none;opacity:0;white-space:nowrap;}
+  width:200px;height:7px;background:rgba(0,0,0,.4);border-radius:4px;display:none;overflow:hidden;
+  border:1px solid rgba(255,255,255,.2);}
+#pax-fill{height:100%;background:#44FF88;border-radius:4px;transition:width .1s linear;}
+
+/* ── 共通スクリーン ───────────────────────────── */
+.scr{position:fixed;top:0;left:0;width:100%;height:100%;z-index:100;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-family:var(--font);}
+
+/* ── タイトル画面 ─────────────────────────────── */
+#title{background:linear-gradient(160deg,#EAF4FF 0%,#C8E4FF 50%,#A0CFFF 100%);}
+#title h1{font-size:32px;font-weight:900;color:#0A3D7A;
+  text-shadow:3px 3px 0 rgba(26,107,196,.2);
+  text-align:center;line-height:1.4;margin-bottom:4px;}
+#title .sub{color:#1A4A7A;font-size:13px;font-weight:700;margin-bottom:4px;}
+#title .sub2{color:#2A6AAA;font-size:11px;margin-bottom:18px;}
+.op{color:#1A3A5A;font-size:13px;margin:3px 12px;text-align:center;}
+.op b{color:var(--primary);}
+
+/* ── スタートボタン共通 ───────────────────────── */
+.start-btn{margin-top:22px;padding:14px 48px;font-size:20px;font-weight:900;
+  font-family:var(--font);
+  background:linear-gradient(135deg,#1A6BC4,#3AABF0);
+  color:#fff;border:none;border-radius:10px;cursor:pointer;
+  box-shadow:0 4px 0 #0A3D7A,0 6px 16px rgba(26,107,196,.35);
+  letter-spacing:.06em;transition:transform .08s,box-shadow .08s;}
+.start-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #0A3D7A,0 3px 8px rgba(26,107,196,.2);}
+
+/* ── キャラ選択画面 ───────────────────────────── */
+#charsel{background:linear-gradient(160deg,#EAF4FF 0%,#C8E4FF 50%,#A0CFFF 100%);display:none;overflow-y:auto;}
+#charsel h2{font-size:22px;font-weight:900;color:#0A3D7A;margin-bottom:14px;text-align:center;}
+.char-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;width:min(520px,96vw);padding:0 8px;}
+.char-card{background:var(--card-bg);border:2.5px solid #B0D4F0;border-radius:12px;
+  padding:12px 12px;cursor:pointer;transition:border-color .15s,box-shadow .15s;text-align:center;
+  box-shadow:0 2px 8px rgba(0,0,0,.08);}
+.char-card:hover,.char-card.sel{border-color:var(--primary);box-shadow:0 4px 16px rgba(26,107,196,.28);}
+.char-card .cn{font-size:15px;font-weight:900;color:var(--dark);margin-bottom:3px;}
+.char-card .cq{font-size:11px;color:#777;margin-bottom:7px;}
+.char-car{width:48px;height:28px;border-radius:5px;margin:0 auto 8px;border:2px solid rgba(0,0,0,.12);}
+.stat-row{display:flex;align-items:center;gap:5px;margin:3px 0;font-size:11px;}
+.stat-lbl{width:34px;color:#555;text-align:left;font-weight:700;}
+.stat-bar{flex:1;height:7px;background:#D8EAF8;border-radius:4px;overflow:hidden;}
+.stat-fill{height:100%;border-radius:4px;transition:width .3s;}
+
+/* ── リザルト画面 ─────────────────────────────── */
+#result{background:linear-gradient(160deg,#EAF4FF 0%,#C8E4FF 50%,#A0CFFF 100%);display:none;}
+#result h1{font-size:52px;font-weight:900;text-shadow:2px 2px 0 rgba(0,0,0,.1);margin-bottom:14px;}
+.rd{font-size:20px;font-weight:700;color:var(--dark);margin:5px 0;}
+
+/* ── アニメーション ───────────────────────────── */
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+@keyframes comboPulse{0%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.22)}100%{transform:translate(-50%,-50%) scale(1)}}
+
 /* ── レスポンシブ（横画面）─────────────────────── */
 @media (orientation:landscape) and (max-height:500px){
   #tc{height:120px;}
@@ -116,7 +140,7 @@ body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-
   <div class="op" style="margin-top:8px"><b>W / ↑</b> アクセル &nbsp;
     <b>S / ↓</b> ブレーキ &nbsp; <b>A D / ← →</b> ステアリング</div>
   <div class="op"><b>Shift</b> 神風ダッシュ &nbsp;|&nbsp; <b>🟣 空港</b>は高速道路で！</div>
-  <button class="start-btn" onclick="showCharSel()">キャラ選択 →</button>
+  <button class="start-btn" onclick="showCharSel()">ドライバー選択 →</button>
 </div>
 
 <div id="charsel" class="scr">
@@ -138,7 +162,6 @@ body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-
   <div id="et"></div>
   <div id="st"></div>
   <div id="pax-bar"><div id="pax-fill"></div></div>
-  <div id="local-event"></div>
   <canvas id="mm" width="110" height="110"></canvas>
   <div id="area-label"></div>
 </div>
@@ -246,7 +269,6 @@ const G = {
   inAir:      false,
   jumpVel:    0,
   jumpCool:   0,
-  localEventTimer: 25,
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -780,9 +802,9 @@ const TRAM_ROUTES = [
 
 const TRAM_NEAR_R  = 9;   // ニアミス判定半径
 const TRAM_HIT_R   = 4.5; // 衝突判定半径
-let tramLastNearMs = -999;// ニアミスクールダウン
+let tramLastNearMs = -9999999; // ニアミスクールダウン（ms）
 let shakeTimer    = 0;    // camera shake duration
-let lastHitTime   = -999; // collision cooldown
+let lastHitTime   = -9999999; // collision cooldown（ms）
 
 const trams = []; // [{mesh, route, t, dir}]
 
@@ -877,17 +899,15 @@ function updateTrams(dt) {
 
     if (dist < TRAM_HIT_R) {
       // 衝突：スピンアウト
-      const now = G.timer;
-      if (now - lastHitTime > 0.5) {
+      const now = performance.now();
+      if (now - lastHitTime > 500) {
         lastHitTime = now;
         G.spd *= -0.35;
-        showEval('広電に衝突！', '#FF4444', 1.6);
-        shakeTimer = 0.45;
-        G.combo = 1.0;
+        applyCollisionPenalty('広電に衝突！', 0.45);
       }
     } else if (dist < TRAM_NEAR_R && G.phase === 'PLAY') {
-      const now = G.timer;
-      if (now - tramLastNearMs > 2.0) {
+      const now = performance.now();
+      if (now - tramLastNearMs > 2000) {
         tramLastNearMs = now;
         addTip('near');
       }
@@ -965,7 +985,7 @@ const NPC_COLORS = [
 
 const NPC_HIT_R  = 4.0;
 const NPC_NEAR_R = 7.0;
-let npcLastNearMs = -999;
+let npcLastNearMs = -9999999;
 const npcs = [];
 
 function buildNpcVehicle(route, idx) {
@@ -1057,17 +1077,15 @@ function updateNpcs(dt) {
     // 衝突判定
     const dist = Math.hypot(G.pos.x - tx, G.pos.z - tz);
     if (dist < NPC_HIT_R) {
-      const now = G.timer;
-      if (now - lastHitTime > 0.5) {
+      const now = performance.now();
+      if (now - lastHitTime > 500) {
         lastHitTime = now;
         G.spd *= -0.3;
-        showEval('衝突！', '#FF4444', 1.2);
-        shakeTimer = 0.32;
-        G.combo = 1.0;
+        applyCollisionPenalty('車に衝突！', 0.32);
       }
     } else if (dist < NPC_NEAR_R) {
-      const now = G.timer;
-      if (now - npcLastNearMs > 1.5) {
+      const now = performance.now();
+      if (now - npcLastNearMs > 1500) {
         npcLastNearMs = now;
         addTip('near');
       }
@@ -1346,15 +1364,13 @@ function physics(dt) {
   }
 
   if (hit) {
-    const now = G.timer;
-    if (now - lastHitTime > 0.4) {
+    const now = performance.now();
+    if (now - lastHitTime > 400) {
       lastHitTime = now;
       const impact = Math.abs(G.spd);
       G.spd *= -0.25 * ch.durability;
       if (impact > 3) {
-        showEval('衝突！', '#FF4444', 1.2);
-        shakeTimer = 0.28 / ch.durability;
-        G.combo = 1.0; G.consec = 0;
+        applyCollisionPenalty('衝突！', 0.28 / ch.durability);
       }
     } else {
       G.spd = 0;
@@ -1508,48 +1524,44 @@ const HWY_LINES = [
 ];
 
 // ═══════════════════════════════════════════════════════════════
+//  COLLISION PENALTY (Phase 4)  – チップマイナス・コンボリセット
+// ═══════════════════════════════════════════════════════════════
+function applyCollisionPenalty(label, shakeDur) {
+  const penalty = 200; // チップから200円減算（100円単位）
+  if (G.carState === 'RIDE') {
+    G.tripTips = Math.max(0, G.tripTips - penalty);
+    showEval(`${label}  −¥${penalty}`, '#FF5555', 1.4);
+  } else {
+    showEval(label, '#FF5555', 1.2);
+  }
+  shakeTimer  = shakeDur;
+  G.combo     = 1.0;
+  G.consec    = 0;
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  TIP SYSTEM (Phase 4)
 // ═══════════════════════════════════════════════════════════════
-const TIP_BASE = { drift:50, near:30, jump:100, hop:20, dash:25 };
+const TIP_BASE = { drift:100, near:100, jump:200, hop:100, dash:100 };
 const TIP_LABEL = {
   drift: ['神風ドリフト！','ドリフト！'],
-  near:  ['ニアミス！','広電ニアミス！'],
+  near:  ['ニアミス！'],
   jump:  ['神風ジャンプ！！'],
   hop:   ['神風ホップ！'],
   dash:  ['神風ダッシュ！'],
 };
 function addTip(type) {
   if (G.carState !== 'RIDE') return;
-  const base  = TIP_BASE[type] || 20;
-  const spdBonus = Math.floor(Math.abs(G.spd) / 4);
-  const amount   = base + spdBonus;
+  const base  = TIP_BASE[type] || 100;
+  const spdBonus = Math.floor(Math.abs(G.spd) / 4) * 10; // スピードボーナスも10円単位
+  const raw      = base + spdBonus;
+  const amount   = Math.round(raw / 100) * 100; // 100円単位に丸める
   G.tripTips += amount;
   G.combo = Math.min(5.0, parseFloat((G.combo + 0.35).toFixed(1)));
+  G.maxCombo = Math.max(G.maxCombo||1.0, G.combo);
   const labels = TIP_LABEL[type] || ['テクニック！'];
   const lbl    = labels[Math.floor(Math.random()*labels.length)];
-  showEval(`${lbl} +¥${amount}`, '#FFD700', 1.1);
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  LOCAL EVENTS (Phase 5)
-// ═══════════════════════════════════════════════════════════════
-const LOCAL_EVENTS = [
-  '⚾ カープ試合日！マツダスタジアム周辺大混雑！',
-  '🎆 宮島花火大会！宮島口方面は大渋滞じゃ！',
-  '🏮 とうかさん開催中！紙屋町・広島駅周辺混雑！',
-  '🌊 太田川花火大会！河川敷エリアは人でいっぱいじゃ！',
-  '🍁 もみじまつり！比治山公園の紅葉が見頃じゃ！',
-  '🐟 お魚天国！広島港に新鮮なカキが入ったけぇ！',
-  '🏰 広島城夜間特別開放！城北エリアは観光客だらけじゃ！',
-];
-let localEventIdx = 0;
-function triggerLocalEvent() {
-  const txt = LOCAL_EVENTS[localEventIdx % LOCAL_EVENTS.length];
-  localEventIdx++;
-  const el = document.getElementById('local-event');
-  el.textContent = txt; el.style.opacity = '1';
-  setTimeout(() => { el.style.transition='opacity 1s'; el.style.opacity='0';
-    setTimeout(()=>{ el.style.transition=''; }, 1100); }, 5000);
+  showEval(`${lbl}  +¥${amount.toLocaleString()}`, '#FFD060', 1.1);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1561,13 +1573,6 @@ function gameLogic(dt) {
   if (G.phase!=='PLAY') return;
   G.timer-=dt;
   if (G.timer<=0) { G.timer=0; endGame(); return; }
-
-  // ── ご当地イベント ───────────────────────────────────
-  G.localEventTimer -= dt;
-  if (G.localEventTimer <= 0) {
-    triggerLocalEvent();
-    G.localEventTimer = 28 + Math.random() * 32;
-  }
 
   // Area label
   document.getElementById('area-label').textContent = getAreaName();
@@ -1871,10 +1876,11 @@ function showCharSel() {
 
 function confirmChar() {
   document.getElementById('charsel').style.display='none';
-  // タクシーの色をキャラに合わせて変更
+  // タクシーボディ（index 0, 1 が車体）の色をキャラに合わせる
   const col = CHARS[selectedChar].carCol;
-  carGrp.children.forEach((c,i) => {
-    if (i===0 && c.material) c.material.color.setHex(col);
+  [0, 1].forEach(i => {
+    const child = carGrp.children[i];
+    if (child && child.material) child.material = mkMat(col);
   });
   startGame();
 }
@@ -1885,13 +1891,14 @@ function confirmChar() {
 function endGame() {
   G.phase='END';
   const r=getRank(G.earn);
-  const RC={S:'#FFD700',A:'#FF8800',B:'#44AAFF',C:'#88FF44',D:'#FF88AA',E:'#888'};
+  // 明るい背景に映える色
+  const RC={S:'#8B6800',A:'#8B3000',B:'#005599',C:'#006622',D:'#880044',E:'#555'};
   document.getElementById('rr').textContent=`ランク ${r}`;
-  document.getElementById('rr').style.color=RC[r]||'#fff';
+  document.getElementById('rr').style.color=RC[r]||'#333';
   document.getElementById('rm').textContent=G.earn.toLocaleString();
   document.getElementById('rl').textContent=r;
   document.getElementById('rdeliveries').textContent=
-    `配達数: ${G.deliveries}回  最大コンボ: ×${G.combo.toFixed(1)}`;
+    `配達数: ${G.deliveries}回　最大コンボ: ×${(G.maxCombo||G.combo).toFixed(1)}`;
   document.getElementById('rconsec').textContent=
     G.maxConsec>=3 ? `🔥 最大連続配達: ${G.maxConsec}回！` : '';
   document.getElementById('result').style.display='flex';
@@ -1907,14 +1914,13 @@ function startGame() {
   // Phase 4 state reset
   G.combo=1.0; G.tripTips=0;
   G.paxTimer=0; G.paxTimerMax=60;
-  G.consec=0; G.maxConsec=0;
+  G.consec=0; G.maxConsec=0; G.maxCombo=1.0;
   G.driftTimer=0; G.driftCool=0;
   G.inAir=false; G.jumpVel=0; G.jumpCool=0;
-  G.localEventTimer=25;
-  G.pos.set(-60,.5,0);
-  camPos.set(-60,8,13);
+  G.pos.set(62, .5, 42);   // 駅前アプローチ終点・比治山エリア入口
+  camPos.set(62, 8, 55);
   paxRespawnT=-1; extraPaxI=0; destI=0; onHighwaySince=-1;
-  shakeTimer=0; lastHitTime=-999; tramLastNearMs=-999; npcLastNearMs=-999;
+  shakeTimer=0; lastHitTime=-9999999; tramLastNearMs=-9999999; npcLastNearMs=-9999999;
   // 路面電車リセット
   trams.forEach((tr)=>{
     const r=tr.route, len=Math.hypot(r.x2-r.x1,r.z2-r.z1);
