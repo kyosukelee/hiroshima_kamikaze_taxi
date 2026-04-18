@@ -346,8 +346,8 @@ function buildHiroshimaMap() {
     [-40,-62, 2, 3,  6, 12, 6, '城北西'],
     [ 64, 77, 3, 4,  6, 12, 7, '比治山'],
     [ 30, 78, 3, 3,  4,  9, 0, '南部東'],
-    [-130, 68, 3, 3,  4,  8, 1, '南部西'],      // 旧(-90,68)→宮島中間縦に接触のため(-130,68)に移動
-    [-146, 67, 2, 3,  3,  8, 2, '宮島街道中間'], // 旧(-126,65)→南部横断道西延長に接触のため(-146,67)に移動
+    // '南部西'[-130,68]は比治山丘(中心-130,74 base半径24)の真上のため削除（比治山公園エリア）
+    [-148, 67, 1, 3,  3,  8, 2, '宮島街道中間'], // 旧(-155,67)→宮島端縦x=[-162,-154]と新丘(r=13)を両方回避
     [-170, 68, 2, 3,  3,  7, 3, '宮島口'],       // 旧(-162,65)→宮島端縦・南部横断道に接触のため(-170,68)に移動
     [ 98,-66, 3, 3,  4,  9, 4, '空港アクセス'],
   ];
@@ -369,7 +369,7 @@ function buildHiroshimaMap() {
   const TREE_PTS = [
     // 平和大通り南側（斜め道路・縦道路の交差点を全て回避）
     [-120,-11],[-100,-11],[-80,-11],[-60,-11],[-20,-11],
-    [-38,-11],[12,-11],[36,-11],[50,-11],[107,-10],
+    [-24,-20],[32,-11],[36,-11],[50,-11],[107,-10],
     // 平和大通り北側
     [-120, 11],[-100, 11],[-80, 11],[-60, 11],[-20, 11],
     [12, 11],[44, 10],[72, 11],
@@ -377,7 +377,7 @@ function buildHiroshimaMap() {
     [10,-56],[-10,-56],[16,-58],
     // 比治山
     [46,70],[52,72],[47,76],[55,74],
-    // 平和公園（平和通りx=-45から大きく離した公園奥）
+    // 平和公園（ビルと重ならない位置）
     [-62,-18],[-66,-16],[-70,-15],[-70,13],
     // 南部（平和通り・城東通り回避）
     [-80,64],[-60,64],[-20,64],[-38,64],[12,64],[50,69],
@@ -394,11 +394,106 @@ function buildHiroshimaMap() {
   buildMiyajimaTorii();
   buildMazdaStadium();
   buildPeaceMuseum();
+
+  // ── HIJIYAMA SLOPE (2-6) ────────────────────────────────────
+  buildHijiyamaSlope();
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  LANDMARK: 原爆ドーム  (x=-50, z=-8)
+//  HIJIYAMA SLOPE – 比治山坂道 (Phase 2-6)
 // ═══════════════════════════════════════════════════════════════
+// 比治山エリア(x=40〜70, z=40〜75)に坂道を配置
+// 坂の上に到達するとY座標が上昇 → ジャンプポイント
+
+const SLOPE_X   = -130;  // 宮島沿岸道路の先（海岸エリア）
+const SLOPE_Z   =  74;   // 宮島沿岸(z=92)手前の緑地エリア
+const SLOPE_LEN = 10;   // 坂の長さ（22→10: 宮島沿岸道路z=[87.5,96.5]に侵入しないよう短縮）
+const SLOPE_H   = 6;    // 坂の高さ
+const SLOPE_W   = 9;    // 坂の幅
+// ジャンプ判定エリア（坂の頂上付近）
+const JUMP_ZONE = { x:-130, z:70, r:10, h:SLOPE_H }; // Phase3でY座標チェックに使用
+
+function buildHijiyamaSlope() {
+  const slopeM  = mkMat(0x505848); // 暗めのアスファルト
+  const hillM   = mkMat(0x556644); // 山の地面
+  const wallM   = mkMat(0x887766); // 擁壁
+  const lineM2  = mkMat(0xDDDDAA);
+
+  // ── 山体（比治山）────────────────────────────────────────
+  // 丘のベース（半径13: 南部横断道西z=59.5と宮島沿岸z=87.5の隙間に収まる最大値）
+  // 南端z=74-13=61 > 59.5 ✓  北端z=74+13=87 < 87.5 ✓
+  const hill = mk(new THREE.CylinderGeometry(8, 13, SLOPE_H, 8), hillM, SLOPE_X, SLOPE_H/2-0.5, SLOPE_Z);
+  scene.add(hill);
+  // 丘の衝突判定（円形）: 半径13でOBS_CIRに登録
+  OBS_CIR.push({ cx: SLOPE_X, cz: SLOPE_Z, r: 13 });
+  const top = mk(new THREE.CylinderGeometry(5, 7, 1.5, 8), hillM, SLOPE_X, SLOPE_H+0.2, SLOPE_Z);
+  scene.add(top);
+
+  // ── 坂道（南側アプローチ） ────────────────────────────────
+  // 坂面（傾斜プレーン）: z range=[76,86], 宮島沿岸z=87.5をクリア ✓
+  const slopeAngle = Math.atan2(SLOPE_H, SLOPE_LEN);
+  const slopeSurf = mk(new THREE.BoxGeometry(SLOPE_W, 0.4, SLOPE_LEN), slopeM,
+                       SLOPE_X, SLOPE_H/2, SLOPE_Z + SLOPE_LEN/2 + 4);
+  slopeSurf.rotation.x = slopeAngle;
+  // Y位置を傾斜中心に合わせる
+  slopeSurf.position.y = SLOPE_H/2 - 0.2;
+  slopeSurf.position.z = SLOPE_Z + SLOPE_LEN/2 + 2;
+  scene.add(slopeSurf);
+
+  // 坂の支持壁（擁壁）z=85: 道路z=87.5より手前 ✓
+  const wall = mk(new THREE.BoxGeometry(SLOPE_W, SLOPE_H, 1.5), wallM,
+                  SLOPE_X, SLOPE_H/2, SLOPE_Z + SLOPE_LEN + 1);
+  scene.add(wall);
+  // 壁の衝突判定
+  OBS_BOX.push({ cx: SLOPE_X, cz: SLOPE_Z + SLOPE_LEN + 1, hw: SLOPE_W/2, hd: 0.75 });
+
+  // 坂の左右側壁（坂の幅方向を塞ぐ）
+  OBS_BOX.push({ cx: SLOPE_X - SLOPE_W/2, cz: SLOPE_Z + SLOPE_LEN/2 + 2, hw: 0.5, hd: SLOPE_LEN/2 });
+  OBS_BOX.push({ cx: SLOPE_X + SLOPE_W/2, cz: SLOPE_Z + SLOPE_LEN/2 + 2, hw: 0.5, hd: SLOPE_LEN/2 });
+
+  // 坂の側壁（ガードレール）: 3区間のみ（z=77,81,85 → 全て<87.5 ✓）
+  const grM = mkMat(0xAAAAAA);
+  [-SLOPE_W/2-0.3, SLOPE_W/2+0.3].forEach(dx => {
+    for (let i=0; i<3; i++) {
+      const gz = SLOPE_Z + SLOPE_LEN/2 + i*4 - 2;
+      const gy = (i/2)*SLOPE_H + 0.5;
+      const gr = mk(new THREE.BoxGeometry(0.3, 0.6, 4), grM, SLOPE_X+dx, gy+0.3, gz);
+      scene.add(gr);
+    }
+  });
+
+  // 坂のセンターライン
+  const cl = mk(new THREE.BoxGeometry(0.4, 0.1, SLOPE_LEN), lineM2,
+                SLOPE_X, SLOPE_H/2+0.1, SLOPE_Z + SLOPE_LEN/2 + 2);
+  cl.rotation.x = slopeAngle;
+  cl.position.y = SLOPE_H/2 + 0.3;
+  cl.position.z = SLOPE_Z + SLOPE_LEN/2 + 2;
+  scene.add(cl);
+
+  // 頂上の平坦路面
+  const topRoad = mk(new THREE.CylinderGeometry(6, 6, 0.3, 8), slopeM, SLOPE_X, SLOPE_H+0.15, SLOPE_Z);
+  scene.add(topRoad);
+
+  // ── 木（頂上） ────────────────────────────────────────────
+  const trunkM2 = mkMat(0x5C3317), leafM2 = mkMat(0x228B22);
+  [[SLOPE_X-7, SLOPE_Z-5],[SLOPE_X+7, SLOPE_Z-5],[SLOPE_X-6, SLOPE_Z+5],[SLOPE_X+6, SLOPE_Z+5]].forEach(([tx,tz])=>{
+    scene.add(mk(new THREE.CylinderGeometry(.3,.35,2.5,5), trunkM2, tx, SLOPE_H+1.25, tz));
+    scene.add(mk(new THREE.CylinderGeometry(0,2.2,3.5,6), leafM2, tx, SLOPE_H+4.2, tz));
+  });
+
+  // ── ジャンプ台（坂の頂点から飛び出すランプ）z=82: 道路z=87.5より手前 ✓
+  const rampM = mkMat(0x666655);
+  const ramp = mk(new THREE.BoxGeometry(SLOPE_W, 0.5, 4), rampM, SLOPE_X, SLOPE_H+0.25, SLOPE_Z+8);
+  ramp.rotation.x = -0.25; // 前上がり
+  scene.add(ramp);
+}
+
+// ジャンプゾーン判定（gameLogicから呼び出し用 - Phase3フック）
+function isOnSlope() {
+  const dx = G.pos.x - JUMP_ZONE.x;
+  const dz = G.pos.z - JUMP_ZONE.z;
+  return Math.sqrt(dx*dx+dz*dz) < JUMP_ZONE.r;
+}
 function buildAtomDome() {
   const cx=-90, cz=-24;
   const brickM  = mkMat(0xCC8855);
@@ -779,14 +874,14 @@ function buildTramTracks() {
 // [x1,z1, x2,z2, lane_offset, speed, startT]
 // lane_offset: 道路中心からの横ずれ（対向車線）
 const NPC_ROUTES = [
-  { x1:-90,z1:22,  x2:80,  z2:22,  lo: 2.5, spd:8,  t:0.1 }, // 八丁堀通り 東行き（左側）
-  { x1: 80,z1:22,  x2:-90, z2:22,  lo: 2.5, spd:7,  t:0.5 }, // 八丁堀通り 西行き（左側）
-  { x1:  0,z1:20,  x2:  0, z2:-70, lo: 2.5, spd:9,  t:0.2 }, // 相生通り 北行き（左側）
-  { x1:  0,z1:-70, x2:  0, z2: 90, lo: 2.5, spd:8,  t:0.7 }, // 相生通り 南行き（左側）
-  { x1: 24,z1:60,  x2: 24, z2:-60, lo: 2.5, spd:9,  t:0.3 }, // 城東通り 北行き（左側）
-  { x1: 62,z1:60,  x2: 62, z2:-5,  lo: 2.5, spd:10, t:0.6 }, // 駅前大通り 北行き（左側）
-  { x1:-45,z1:60,  x2:-45, z2:-10, lo: 2.5, spd:7,  t:0.4 }, // 平和通り 北行き（左側）
-  { x1:-100,z1:55, x2: 60, z2:55,  lo: 2.5, spd:8,  t:0.8 }, // 南部横断道 東行き（左側）
+  { x1:-90,z1:22,  x2:80,  z2:22,  lo:-2.5, spd:8,  t:0.1 }, // 八丁堀通り 東行き
+  { x1: 80,z1:22,  x2:-90, z2:22,  lo:-2.5, spd:7,  t:0.5 }, // 八丁堀通り 西行き
+  { x1:  0,z1:20,  x2:  0, z2:-70, lo:-2.5, spd:9,  t:0.2 }, // 相生通り 北行き
+  { x1:  0,z1:-70, x2:  0, z2: 90, lo:-2.5, spd:8,  t:0.7 }, // 相生通り 南行き
+  { x1: 24,z1:60,  x2: 24, z2:-60, lo:-2.5, spd:9,  t:0.3 }, // 城東通り 北行き
+  { x1: 62,z1:60,  x2: 62, z2:-5,  lo:-2.5, spd:10, t:0.6 }, // 駅前大通り 北行き
+  { x1:-45,z1:60,  x2:-45, z2:-10, lo:-2.5, spd:7,  t:0.4 }, // 平和通り 北行き
+  { x1:-100,z1:55, x2: 60, z2:55,  lo:-2.5, spd:8,  t:0.8 }, // 南部横断道 東行き
 ];
 
 // 車体色パレット
@@ -856,7 +951,7 @@ function buildNpcVehicle(route, idx) {
   grp.rotation.y = Math.atan2(-dx, -dz);
   scene.add(grp);
 
-  npcs.push({ mesh:grp, route:r, t:r.t, dir:1, wheels: grp.children.filter((_,i)=>i>=8) });
+  npcs.push({ mesh:grp, route:r, t:r.t });
 }
 
 function buildNpcs() {
@@ -871,23 +966,20 @@ function updateNpcs(dt) {
     const dx  = (r.x2-r.x1)/len, dz = (r.z2-r.z1)/len;
     const nx  = -dz, nz = dx;
 
-    npc.t += npc.dir * r.spd * dt / len;
-    if (npc.t >= 1) { npc.t = 1; npc.dir = -1; }
-    if (npc.t <= 0) { npc.t = 0; npc.dir =  1; }
+    // 一方向ループ（端点に達したら始点にワープ）
+    npc.t += r.spd * dt / len;
+    if (npc.t >= 1) npc.t -= 1;
 
-    const tx = r.x1 + dx*len*npc.t + nx*(npc.dir * r.lo);
-    const tz = r.z1 + dz*len*npc.t + nz*(npc.dir * r.lo);
+    const tx = r.x1 + dx*len*npc.t + nx*r.lo;
+    const tz = r.z1 + dz*len*npc.t + nz*r.lo;
     npc.mesh.position.set(tx, 0, tz);
 
-    // 向き
-    const fdx = dx*npc.dir, fdz = dz*npc.dir;
-    npc.mesh.rotation.y = Math.atan2(-fdx, -fdz);
+    // 向き（常に進行方向）
+    npc.mesh.rotation.y = Math.atan2(-dx, -dz);
 
     // タイヤ回転
-    const wr = r.spd * npc.dir * .04;
-    npc.mesh.children.forEach((c,i) => {
-      if (i >= 8) c.rotation.x += wr;
-    });
+    const wr = r.spd * .04;
+    npc.mesh.children.forEach((c,i) => { if (i >= 8) c.rotation.x += wr; });
 
     // 衝突判定
     const dist = Math.hypot(G.pos.x - tx, G.pos.z - tz);
@@ -1549,8 +1641,8 @@ function startGame() {
     const r=npc.route, len=Math.hypot(r.x2-r.x1,r.z2-r.z1);
     const dx=(r.x2-r.x1)/len, dz=(r.z2-r.z1)/len;
     const nx=-dz, nz=dx;
-    npc.t=r.t; npc.dir=1;
-    npc.mesh.position.set(r.x1+dx*len*r.t+nx*(1*r.lo), 0, r.z1+dz*len*r.t+nz*(1*r.lo));
+    npc.t=r.t;
+    npc.mesh.position.set(r.x1+dx*len*r.t+nx*r.lo, 0, r.z1+dz*len*r.t+nz*r.lo);
     npc.mesh.rotation.y=Math.atan2(-dx,-dz);
   });
   G.dest.pos.copy(DEST_POOL[0].pos);
