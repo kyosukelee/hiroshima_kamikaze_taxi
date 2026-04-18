@@ -111,7 +111,19 @@ body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-
 .stat-bar{flex:1;height:7px;background:#D8EAF8;border-radius:4px;overflow:hidden;}
 .stat-fill{height:100%;border-radius:4px;transition:width .3s;}
 
-/* ── リザルト画面 ─────────────────────────────── */
+/* ── 車両選択画面 ─────────────────────────────── */
+#vehiclesel{background:linear-gradient(160deg,#EAF4FF 0%,#C8E4FF 50%,#A0CFFF 100%);display:none;overflow-y:auto;}
+#vehiclesel h2{font-size:22px;font-weight:900;color:#0A3D7A;margin-bottom:14px;text-align:center;}
+.veh-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;width:min(540px,96vw);padding:0 8px;}
+.veh-card{background:var(--card-bg);border:2.5px solid #B0D4F0;border-radius:12px;
+  padding:10px 12px;cursor:pointer;transition:border-color .15s,box-shadow .15s;text-align:center;
+  box-shadow:0 2px 8px rgba(0,0,0,.08);}
+.veh-card:hover,.veh-card.sel{border-color:var(--primary);box-shadow:0 4px 16px rgba(26,107,196,.28);}
+.veh-card .vn{font-size:15px;font-weight:900;color:var(--dark);margin-bottom:2px;}
+.veh-card .vd{font-size:10px;color:#888;margin-bottom:7px;}
+.veh-preview{width:100%;height:52px;border-radius:6px;margin:0 auto 8px;
+  display:flex;align-items:center;justify-content:center;overflow:hidden;
+  border:1.5px solid rgba(0,0,0,.1);background:#F5F8FC;}
 #result{background:linear-gradient(160deg,#EAF4FF 0%,#C8E4FF 50%,#A0CFFF 100%);display:none;}
 #result h1{font-size:52px;font-weight:900;text-shadow:2px 2px 0 rgba(0,0,0,.1);margin-bottom:14px;}
 .rd{font-size:20px;font-weight:700;color:var(--dark);margin:5px 0;}
@@ -146,6 +158,12 @@ body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-
   <h2>🚕 ドライバー選択</h2>
   <div class="char-grid" id="char-grid"></div>
   <button class="start-btn" style="margin-top:16px;font-size:18px;padding:12px 36px;" onclick="confirmChar()">出発！ ▶</button>
+</div>
+
+<div id="vehiclesel" class="scr">
+  <h2>🚗 車両選択</h2>
+  <div class="veh-grid" id="vehicle-grid"></div>
+  <button class="start-btn" style="margin-top:16px;font-size:18px;padding:12px 36px;" onclick="confirmVehicle()">出発！ ▶</button>
 </div>
 
 <canvas id="gc"></canvas>
@@ -232,6 +250,21 @@ const CHARS = [
     stat:[2,2,5], color:'#AAAAAA' },
 ];
 let selectedChar = 0;
+
+// ═══════════════════════════════════════════════════════════════
+//  VEHICLES (Phase 5 – 車両選択)
+// ═══════════════════════════════════════════════════════════════
+const VEHICLES = [
+  { name:'JPN TAXI',   desc:'安定・全場面で活躍',
+    accel:1.0, maxSpd:1.0, durability:1.2, stat:[3,3,4] },
+  { name:'コンフォート', desc:'最高速特化・長距離向き',
+    accel:1.0, maxSpd:1.3, durability:1.0, stat:[3,4,3] },
+  { name:'ワゴン',      desc:'頑丈・遠距離ハイリターン',
+    accel:0.7, maxSpd:0.8, durability:1.6, stat:[2,2,5] },
+  { name:'TUK-TUK',   desc:'加速最強・小回り抜群',
+    accel:1.8, maxSpd:0.7, durability:0.7, stat:[5,2,2] },
+];
+let selectedVehicle = 0;
 
 // ═══════════════════════════════════════════════════════════════
 //  GAME STATE
@@ -1092,30 +1125,287 @@ function updateNpcs(dt) {
   });
 }
 let carGrp, wheels = [];
+
+// ── 車両モデル切り替え ────────────────────────────────────────
+function buildCarModel(idx) {
+  // 既存メッシュを全削除
+  while (carGrp.children.length) carGrp.remove(carGrp.children[0]);
+  wheels = [];
+  const builders = [buildJpnTaxi, buildComfort, buildWagon, buildTukTuk];
+  builders[idx]();
+}
+
 function buildCar() {
   carGrp = new THREE.Group();
-  const yM=mkMat(TAXI_BODY_COL), dkM=mkMat(0x1E2E3C), gmM=mkMat(0x888888);
-  const hlM=mkMat(0xFFFFBB), tlM=mkMat(0xFF2200), rnM=mkMat(TAXI_ROOF_COL);
-  carGrp.add(mk(new THREE.BoxGeometry(2.2,.82,4.2), yM, 0,.6,0));
-  carGrp.add(mk(new THREE.BoxGeometry(1.88,.74,2.32), yM, 0,1.37,.15));
-  carGrp.add(mk(new THREE.BoxGeometry(.78,.34,.5), rnM, 0,1.87,.15));
-  carGrp.add(mk(new THREE.BoxGeometry(1.8,.52,.12), dkM, 0,1.26,-.9));
-  carGrp.add(mk(new THREE.BoxGeometry(1.8,.52,.12), dkM, 0,1.26,1.2));
-  carGrp.add(mk(new THREE.BoxGeometry(.12,.42,1.8), dkM, 1.06,1.32,.2));
-  carGrp.add(mk(new THREE.BoxGeometry(.12,.42,1.8), dkM,-1.06,1.32,.2));
-  carGrp.add(mk(new THREE.BoxGeometry(1.92,.32,.2), gmM, 0,.32,-2.2));
-  carGrp.add(mk(new THREE.BoxGeometry(1.92,.32,.2), gmM, 0,.32,2.2));
-  [-.7,.7].forEach(x => carGrp.add(mk(new THREE.BoxGeometry(.48,.28,.14), hlM, x,.6,-2.14)));
-  [-.7,.7].forEach(x => carGrp.add(mk(new THREE.BoxGeometry(.48,.28,.14), tlM, x,.6,2.14)));
-  [-.7,.7].forEach(x => carGrp.add(mk(new THREE.BoxGeometry(.35,.15,.12), mkMat(0x666666), x>0?x+1.14:-x-1.14,.98,-.7)));
-  const wkGeo=new THREE.CylinderGeometry(.5,.5,.38,10), wkM=mkMat(0x1E1E1E);
-  [[-1.2,.5,-1.32],[1.2,.5,-1.32],[-1.2,.5,1.32],[1.2,.5,1.32]].forEach(([x,y,z]) => {
-    const wg=new THREE.Group();
-    const wm=new THREE.Mesh(wkGeo,wkM); wm.rotation.z=Math.PI/2; wg.add(wm);
-    wg.position.set(x,y,z); carGrp.add(wg); wheels.push(wg);
-  });
   scene.add(carGrp);
   carGrp.position.copy(G.pos);
+  buildCarModel(0);
+}
+
+// ── JPN TAXI（トヨタ ジャパンタクシー）─────────────────────────
+function buildJpnTaxi() {
+  const col = CHARS[selectedChar].carCol;
+  const bodyM  = mkMat(col);
+  const blackM = mkMat(0x111122);
+  const winM   = mkMat(0x2A3F55);
+  const gmM    = mkMat(0x999999);
+  const hlM    = mkMat(0xFFFFCC);
+  const tlM    = mkMat(0xFF2200);
+  const hubM   = mkMat(0xBBBBBB);
+
+  // ロアボディ（カラー）
+  carGrp.add(mk(new THREE.BoxGeometry(2.3, 0.78, 4.1), bodyM,  0, 0.54, 0));
+  // アッパーボディ・ピラー（ブラック）
+  carGrp.add(mk(new THREE.BoxGeometry(2.2, 0.88, 3.85), blackM, 0, 1.27, 0));
+  // ルーフ（ブラック・わずかに絞り）
+  carGrp.add(mk(new THREE.BoxGeometry(2.0, 0.22, 3.65), blackM, 0, 1.75, 0));
+  // フロント窓
+  carGrp.add(mk(new THREE.BoxGeometry(1.82, 0.65, 0.12), winM,  0, 1.24, -1.88));
+  // リア窓
+  carGrp.add(mk(new THREE.BoxGeometry(1.82, 0.62, 0.12), winM,  0, 1.22,  1.88));
+  // サイド窓 左右（前後）
+  [-1.12, 1.12].forEach(ox => {
+    carGrp.add(mk(new THREE.BoxGeometry(0.12, 0.58, 0.92), winM, ox, 1.22, -0.9));
+    carGrp.add(mk(new THREE.BoxGeometry(0.12, 0.55, 1.05), winM, ox, 1.20,  0.55));
+  });
+  // バンパー前後（グレー）
+  carGrp.add(mk(new THREE.BoxGeometry(2.3, 0.28, 0.2), gmM, 0, 0.24, -2.16));
+  carGrp.add(mk(new THREE.BoxGeometry(2.3, 0.28, 0.2), gmM, 0, 0.24,  2.16));
+  // グリル
+  carGrp.add(mk(new THREE.BoxGeometry(1.55, 0.32, 0.12), mkMat(0x1A1A2A), 0, 0.52, -2.12));
+  // ヘッドライト（横長・特徴的）
+  [-0.78, 0.78].forEach(ox => {
+    carGrp.add(mk(new THREE.BoxGeometry(0.58, 0.2, 0.12), hlM, ox, 0.68, -2.12));
+    carGrp.add(mk(new THREE.BoxGeometry(0.5,  0.18, 0.12), tlM, ox, 0.56,  2.12));
+  });
+  // ルーフサイン（行灯）
+  carGrp.add(mk(new THREE.BoxGeometry(0.95, 0.2, 0.5), mkMat(0xFFFFAA), 0, 1.9, -0.3));
+  carGrp.add(mk(new THREE.BoxGeometry(0.9,  0.16, 0.46), mkMat(0x333355), 0, 1.9, -0.3));
+  // アンダーフレーム
+  carGrp.add(mk(new THREE.BoxGeometry(2.1, 0.14, 3.85), mkMat(0x333333), 0, 0.08, 0));
+
+  // タイヤ×4（ハブキャップ付き）
+  const wkGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.34, 12);
+  const wkM   = mkMat(0x1A1A1A);
+  [[-1.26, 0.5, -1.42],[1.26, 0.5, -1.42],[-1.26, 0.5, 1.42],[1.26, 0.5, 1.42]].forEach(([x,y,z]) => {
+    const wg = new THREE.Group();
+    const wm = new THREE.Mesh(wkGeo, wkM); wm.rotation.z = Math.PI/2; wg.add(wm);
+    const hb = new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.22,0.36,8), hubM);
+    hb.rotation.z = Math.PI/2; wg.add(hb);
+    wg.position.set(x,y,z); carGrp.add(wg); wheels.push(wg);
+  });
+}
+
+// ── コンフォート（トヨタ クラウンコンフォート）参考画像準拠 ──────
+function buildComfort() {
+  const col     = CHARS[selectedChar].carCol;
+  const bodyM   = mkMat(col);
+  const dkM     = mkMat(0x0D1520);  // ルーフ（ほぼ黒）
+  const winM    = mkMat(0x4A7A99);  // 窓（青系）
+  const chromeM = mkMat(0xCCCCCC);  // クロームバンパー・トリム
+  const hlM     = mkMat(0xFFFFBB);
+  const tlM     = mkMat(0xFF2200);
+  const hubM    = mkMat(0xDDDDDD);  // 大型白ホイールキャップ（特徴）
+  const wkM     = mkMat(0x1A1A1A);
+
+  // ── メインボディ（低く長い・3ボックス） ──────────────────
+  carGrp.add(mk(new THREE.BoxGeometry(2.02, 0.68, 5.1), bodyM, 0, 0.44, 0));
+
+  // ── フード（長い・ノーズが低い） ─────────────────────────
+  carGrp.add(mk(new THREE.BoxGeometry(1.98, 0.16, 1.65), bodyM, 0, 0.84, -1.73));
+
+  // ── トランク（独立した盛り上がり） ───────────────────────
+  carGrp.add(mk(new THREE.BoxGeometry(1.94, 0.3, 1.3), bodyM, 0, 0.88, 1.9));
+
+  // ── キャビン（低め・3ボックス中央） ─────────────────────
+  carGrp.add(mk(new THREE.BoxGeometry(1.9, 0.58, 2.35), bodyM, 0, 1.07, -0.08));
+
+  // ── ルーフ ────────────────────────────────────────────
+  carGrp.add(mk(new THREE.BoxGeometry(1.82, 0.14, 2.28), dkM, 0, 1.44, -0.08));
+
+  // ── ウィンドウ ────────────────────────────────────────
+  // フロント（傾斜・大型）
+  carGrp.add(mk(new THREE.BoxGeometry(1.72, 0.5, 0.12), winM, 0, 1.08, -1.3));
+  // リア
+  carGrp.add(mk(new THREE.BoxGeometry(1.72, 0.45, 0.12), winM, 0, 1.06, 1.15));
+  // サイド（前後2枚）
+  [-0.97, 0.97].forEach(ox => {
+    carGrp.add(mk(new THREE.BoxGeometry(0.12, 0.46, 0.98), winM, ox, 1.07, -0.46));
+    carGrp.add(mk(new THREE.BoxGeometry(0.12, 0.43, 0.92), winM, ox, 1.05,  0.52));
+  });
+
+  // ── クロームバンパー（前後・目立つ） ─────────────────────
+  carGrp.add(mk(new THREE.BoxGeometry(2.08, 0.22, 0.28), chromeM, 0, 0.28, -2.66));
+  carGrp.add(mk(new THREE.BoxGeometry(2.08, 0.2,  0.28), chromeM, 0, 0.26,  2.66));
+
+  // ── クロームトリムライン ──────────────────────────────
+  carGrp.add(mk(new THREE.BoxGeometry(2.06, 0.05, 5.05), chromeM, 0, 0.78, 0));
+
+  // ── グリル ───────────────────────────────────────────
+  carGrp.add(mk(new THREE.BoxGeometry(1.5, 0.24, 0.12), mkMat(0x1A1A2A), 0, 0.44, -2.61));
+  carGrp.add(mk(new THREE.BoxGeometry(1.88, 0.06, 0.12), chromeM, 0, 0.6, -2.61));
+
+  // ── ライト ────────────────────────────────────────────
+  [-0.7, 0.7].forEach(ox => {
+    carGrp.add(mk(new THREE.BoxGeometry(0.52, 0.2, 0.12), hlM, ox, 0.62, -2.62));
+    carGrp.add(mk(new THREE.BoxGeometry(0.5, 0.18, 0.12), tlM, ox, 0.54,  2.62));
+  });
+
+  // ── ルーフサイン ─────────────────────────────────────
+  carGrp.add(mk(new THREE.BoxGeometry(0.86, 0.18, 0.42), mkMat(0xFFFFAA), 0, 1.62, -0.08));
+
+  // ── タイヤ×4（大型白ホイールキャップ） ────────────────────
+  const wkGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.3, 12);
+  [[-1.12, 0.5, -1.68],[1.12, 0.5, -1.68],[-1.12, 0.5, 1.78],[1.12, 0.5, 1.78]].forEach(([x,y,z]) => {
+    const wg = new THREE.Group();
+    const wm = new THREE.Mesh(wkGeo, wkM); wm.rotation.z = Math.PI/2; wg.add(wm);
+    // 大型白ホイールキャップ（クラウンコンフォートの特徴）
+    const hb = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.32, 12), hubM);
+    hb.rotation.z = Math.PI/2; wg.add(hb);
+    // センターキャップ
+    const ct = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.34, 6), mkMat(0x444444));
+    ct.rotation.z = Math.PI/2; wg.add(ct);
+    wg.position.set(x, y, z); carGrp.add(wg); wheels.push(wg);
+  });
+}
+
+// ── ワゴン（アルファード系タクシーワゴン）────────────────────────
+function buildWagon() {
+  const col = CHARS[selectedChar].carCol;
+  const bodyM  = mkMat(col);
+  const dkM    = mkMat(0x151D28);
+  const winM   = mkMat(0x2A3F55);
+  const gmM    = mkMat(0xAAAAAA);
+  const hlM    = mkMat(0xFFFFCC);
+  const tlM    = mkMat(0xFF2200);
+  const hubM   = mkMat(0xCCCCCC);
+
+  // メインボディ（背高・幅広・長い）
+  carGrp.add(mk(new THREE.BoxGeometry(2.45, 1.1, 5.0), bodyM, 0, 0.70, 0));
+  // アッパーキャビン（ほぼフルレングス）
+  carGrp.add(mk(new THREE.BoxGeometry(2.35, 0.85, 4.6), bodyM, 0, 1.65, 0.05));
+  // ルーフ
+  carGrp.add(mk(new THREE.BoxGeometry(2.25, 0.2,  4.5), dkM,   0, 2.15, 0.05));
+  // フロントフェイス（大型フラット）
+  carGrp.add(mk(new THREE.BoxGeometry(2.45, 0.9,  0.22), dkM,   0, 1.6, -2.62));
+  // フロントウィンドウ（縦長・大型）
+  carGrp.add(mk(new THREE.BoxGeometry(2.12, 0.72, 0.12), winM,  0, 1.6, -2.48));
+  // サイド窓（横長×2列）
+  [-1.19, 1.19].forEach(ox => {
+    carGrp.add(mk(new THREE.BoxGeometry(0.12, 0.58, 1.42), winM, ox, 1.62, -0.82));
+    carGrp.add(mk(new THREE.BoxGeometry(0.12, 0.58, 1.42), winM, ox, 1.62,  0.88));
+  });
+  // リアウィンドウ
+  carGrp.add(mk(new THREE.BoxGeometry(2.12, 0.62, 0.12), winM, 0, 1.58, 2.56));
+  // バンパー（大型）
+  carGrp.add(mk(new THREE.BoxGeometry(2.45, 0.32, 0.22), gmM, 0, 0.26, -2.62));
+  carGrp.add(mk(new THREE.BoxGeometry(2.45, 0.3,  0.22), gmM, 0, 0.26,  2.62));
+  // ヘッドライト（ワイド）
+  [-0.82, 0.82].forEach(ox => {
+    carGrp.add(mk(new THREE.BoxGeometry(0.68, 0.28, 0.14), hlM, ox, 1.02, -2.64));
+    carGrp.add(mk(new THREE.BoxGeometry(0.62, 0.22, 0.14), tlM, ox, 0.85,  2.64));
+  });
+  // グリル
+  carGrp.add(mk(new THREE.BoxGeometry(1.85, 0.34, 0.14), mkMat(0x1A1A2A), 0, 1.28, -2.64));
+  // ルーフアンテナ
+  carGrp.add(mk(new THREE.BoxGeometry(0.06, 0.38, 0.06), mkMat(0x888888), 0, 2.38, -0.8));
+  // アンダーフレーム
+  carGrp.add(mk(new THREE.BoxGeometry(2.3, 0.15, 4.8), mkMat(0x333333), 0, 0.08, 0));
+
+  // タイヤ×4（大径）
+  const wkGeo = new THREE.CylinderGeometry(0.55, 0.55, 0.38, 12);
+  const wkM   = mkMat(0x1A1A1A);
+  [[-1.32, 0.55, -1.72],[1.32, 0.55, -1.72],[-1.32, 0.55, 1.82],[1.32, 0.55, 1.82]].forEach(([x,y,z]) => {
+    const wg = new THREE.Group();
+    const wm = new THREE.Mesh(wkGeo, wkM); wm.rotation.z = Math.PI/2; wg.add(wm);
+    const hb = new THREE.Mesh(new THREE.CylinderGeometry(0.24,0.24,0.4,8), hubM);
+    hb.rotation.z = Math.PI/2; wg.add(hb);
+    wg.position.set(x,y,z); carGrp.add(wg); wheels.push(wg);
+  });
+}
+
+// ── TUK-TUK（三輪タクシー）参考画像準拠 ──────────────────────────
+function buildTukTuk() {
+  const col    = CHARS[selectedChar].carCol;
+  const bodyM  = mkMat(col);
+  const canM   = mkMat(0xCC2200); // 幌（深赤）
+  const canEdM = mkMat(0x991800); // 幌エッジ（より暗い）
+  const winM   = mkMat(0x5AADCC); // ウィンドウ（水色系）
+  const metalM = mkMat(0x888888);
+  const hlM    = mkMat(0xFFFFBB);
+  const tlM    = mkMat(0xFF3300);
+  const wkM    = mkMat(0x1A1A1A);
+  const rimM   = mkMat(0xFFCC00); // 黄色ホイールリム（参考画像の特徴）
+
+  // ── 前部カウル（エンジン＋ドライバー席）────────────────
+  carGrp.add(mk(new THREE.BoxGeometry(1.72, 0.88, 1.65), bodyM, 0, 0.69, -1.55));
+  // フロントウィンドウ（縦長・立ち気味）
+  carGrp.add(mk(new THREE.BoxGeometry(1.54, 0.68, 0.1), winM, 0, 1.10, -0.78));
+  // ハンドルバー
+  carGrp.add(mk(new THREE.BoxGeometry(1.25, 0.08, 0.08), metalM, 0, 1.25, -1.88));
+  // フロントフォーク
+  carGrp.add(mk(new THREE.BoxGeometry(0.08, 0.65, 0.24), metalM, 0, 0.68, -2.18));
+  // エンジンバンプ（下前部）
+  carGrp.add(mk(new THREE.BoxGeometry(1.5, 0.28, 0.55), mkMat(0x991800), 0, 0.18, -2.12));
+
+  // ── 客席エリア（オープンサイド）────────────────────────
+  // 床面
+  carGrp.add(mk(new THREE.BoxGeometry(1.88, 0.28, 2.85), bodyM, 0, 0.24, 0.38));
+  // 後部パネル
+  carGrp.add(mk(new THREE.BoxGeometry(1.88, 0.92, 0.16), bodyM, 0, 0.68, 1.82));
+
+  // ── フロントピラー×2（細く目立たない）──────────────────
+  [-0.94, 0.94].forEach(ox => {
+    carGrp.add(mk(new THREE.BoxGeometry(0.1, 0.85, 0.1), mkMat(0x991800), ox, 1.12, -0.78));
+  });
+  // ── リアピラー×2 ─────────────────────────────────────
+  [-0.94, 0.94].forEach(ox => {
+    carGrp.add(mk(new THREE.BoxGeometry(0.1, 0.88, 0.1), mkMat(0x991800), ox, 1.14, 1.82));
+  });
+
+  // ── 幌（キャノピー）大型・大きく張り出す ────────────────
+  // メインルーフ
+  carGrp.add(mk(new THREE.BoxGeometry(2.18, 0.16, 3.9), canM,  0, 1.60, 0.08));
+  // 幌エッジ（下面アウトライン）
+  carGrp.add(mk(new THREE.BoxGeometry(2.22, 0.06, 3.94), canEdM, 0, 1.53, 0.08));
+  // 前オーバーハング（大きく前に張り出し）
+  carGrp.add(mk(new THREE.BoxGeometry(2.08, 0.12, 0.85), canM,  0, 1.55, -2.00));
+  // 後オーバーハング
+  carGrp.add(mk(new THREE.BoxGeometry(2.08, 0.12, 0.55), canM,  0, 1.55,  2.12));
+
+  // ── ライト類 ─────────────────────────────────────────
+  [-0.46, 0.46].forEach(ox => {
+    carGrp.add(mk(new THREE.BoxGeometry(0.3, 0.2, 0.12), hlM, ox, 0.78, -2.38));
+  });
+  [-0.58, 0.58].forEach(ox => {
+    carGrp.add(mk(new THREE.BoxGeometry(0.3, 0.18, 0.1), tlM, ox, 0.7, 1.9));
+  });
+
+  // ── アクスル・フレーム ────────────────────────────────
+  carGrp.add(mk(new THREE.BoxGeometry(2.55, 0.08, 0.08), metalM, 0, 0.38, 1.35));
+  carGrp.add(mk(new THREE.BoxGeometry(1.75, 0.14, 4.3), mkMat(0x333333), 0, 0.07, 0));
+
+  // ── フロント1輪（中央・黄色リム）────────────────────────
+  const fwg = new THREE.Group();
+  const fwm = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.26, 12), wkM);
+  fwm.rotation.z = Math.PI/2; fwg.add(fwm);
+  const frm = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.28, 8), rimM);
+  frm.rotation.z = Math.PI/2; fwg.add(frm);
+  const fhb = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.3, 6), mkMat(0x333));
+  fhb.rotation.z = Math.PI/2; fwg.add(fhb);
+  fwg.position.set(0, 0.44, -2.18); carGrp.add(fwg); wheels.push(fwg);
+
+  // ── リア2輪（黄色リム）──────────────────────────────────
+  [[-1.18, 0.46, 1.35], [1.18, 0.46, 1.35]].forEach(([x,y,z]) => {
+    const wg = new THREE.Group();
+    const wm = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.3, 12), wkM);
+    wm.rotation.z = Math.PI/2; wg.add(wm);
+    const rm = new THREE.Mesh(new THREE.CylinderGeometry(0.23, 0.23, 0.32, 8), rimM);
+    rm.rotation.z = Math.PI/2; wg.add(rm);
+    const hb = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.34, 6), mkMat(0x333));
+    hb.rotation.z = Math.PI/2; wg.add(hb);
+    wg.position.set(x, y, z); carGrp.add(wg); wheels.push(wg);
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1292,10 +1582,12 @@ function resolveCollisions(newX, newZ) {
 //  PHYSICS (Phase 4: char stats / drift / jump)
 // ═══════════════════════════════════════════════════════════════
 function physics(dt) {
-  const ch = CHARS[selectedChar];
-  const effAccel   = ACCEL   * ch.accel;
-  const effMaxSpd  = MAX_SPD * ch.maxSpd;
-  const effDashSpd = DASH_SPD * ch.maxSpd;
+  const ch  = CHARS[selectedChar];
+  const veh = VEHICLES[selectedVehicle];
+  const effAccel   = ACCEL    * ch.accel    * veh.accel;
+  const effMaxSpd  = MAX_SPD  * ch.maxSpd   * veh.maxSpd;
+  const effDashSpd = DASH_SPD * ch.maxSpd   * veh.maxSpd;
+  const effDur     = Math.min(2.0, ch.durability * veh.durability);
 
   const i=G.inp;
   const gas=i.gasK||i.gasT, brk=i.brkK||i.brkT;
@@ -1367,9 +1659,9 @@ function physics(dt) {
     if (now - lastHitTime > 400) {
       lastHitTime = now;
       const impact = Math.abs(G.spd);
-      G.spd *= -0.25 * ch.durability;
+      G.spd *= -0.25 * effDur;
       if (impact > 3) {
-        applyCollisionPenalty('衝突！', 0.28 / ch.durability);
+        applyCollisionPenalty('衝突！', 0.28 / effDur);
       }
     } else {
       G.spd = 0;
@@ -1847,6 +2139,7 @@ function updatePaxColor(p) {
 function showCharSel() {
   document.getElementById('title').style.display='none';
   document.getElementById('result').style.display='none';
+  document.getElementById('vehiclesel').style.display='none';
   document.getElementById('charsel').style.display='flex';
   const grid = document.getElementById('char-grid');
   grid.innerHTML = '';
@@ -1875,12 +2168,131 @@ function showCharSel() {
 
 function confirmChar() {
   document.getElementById('charsel').style.display='none';
-  // タクシーボディ（index 0, 1 が車体）の色をキャラに合わせる
-  const col = CHARS[selectedChar].carCol;
-  [0, 1].forEach(i => {
-    const child = carGrp.children[i];
-    if (child && child.material) child.material = mkMat(col);
+  showVehicleSel();
+}
+
+function showVehicleSel() {
+  document.getElementById('vehiclesel').style.display='flex';
+  const grid = document.getElementById('vehicle-grid');
+  grid.innerHTML = '';
+  // 車両ごとのSVGシルエット（簡易）
+  const VEH_SVG = [
+    // JPN TAXI - 背高・角ばったボックス
+    `<svg viewBox="0 0 80 36" width="76" height="34">
+      <rect x="4" y="16" width="72" height="14" rx="2" fill="#1A3060"/>
+      <rect x="8" y="6" width="64" height="12" rx="2" fill="#111122"/>
+      <rect x="12" y="2" width="56" height="6" rx="1" fill="#111122"/>
+      <rect x="14" y="7" width="18" height="8" rx="1" fill="#5588AA" opacity=".85"/>
+      <rect x="38" y="7" width="18" height="8" rx="1" fill="#5588AA" opacity=".85"/>
+      <rect x="30" y="1" width="20" height="4" rx="1" fill="#FFFFAA" opacity=".9"/>
+      <circle cx="16" cy="31" r="5" fill="#1A1A1A"/><circle cx="16" cy="31" r="2.5" fill="#BBBBBB"/>
+      <circle cx="64" cy="31" r="5" fill="#1A1A1A"/><circle cx="64" cy="31" r="2.5" fill="#BBBBBB"/>
+    </svg>`,
+    // コンフォート - 参考画像準拠（側面図：ロングノーズ3ボックス・大型白ホイールキャップ）
+    `<svg viewBox="0 0 96 38" width="92" height="36">
+      <!-- アンダーボディ（低く長い） -->
+      <rect x="3" y="18" width="88" height="10" rx="1" fill="#111122"/>
+      <!-- フード（長い・やや低い） -->
+      <polygon points="3,18 3,24 28,24 28,18 22,13 6,13" fill="#111122"/>
+      <!-- キャビン -->
+      <rect x="27" y="11" width="42" height="9" rx="1" fill="#111122"/>
+      <!-- トランク -->
+      <rect x="67" y="15" width="22" height="7" rx="1" fill="#111122"/>
+      <!-- フロントウィンドウ（大型・傾斜） -->
+      <polygon points="28,12 38,12 38,19 29,19" fill="#4A7A99" opacity=".85"/>
+      <!-- リアウィンドウ -->
+      <polygon points="66,12 66,19 57,19 57,12" fill="#4A7A99" opacity=".85"/>
+      <!-- サイド窓（2枚） -->
+      <rect x="40" y="12" width="14" height="7" rx="1" fill="#4A7A99" opacity=".85"/>
+      <!-- ルーフサイン -->
+      <rect x="43" y="8"  width="14" height="4" rx="1" fill="#FFFFAA"/>
+      <!-- クロームトリムライン -->
+      <rect x="3" y="22" width="88" height="1.5" fill="#BBBBBB" opacity=".7"/>
+      <!-- クロームバンパー前後 -->
+      <rect x="1" y="23" width="6" height="4" rx="1" fill="#CCCCCC"/>
+      <rect x="88" y="23" width="6" height="4" rx="1" fill="#CCCCCC"/>
+      <!-- ヘッドライト（角型） -->
+      <rect x="4"  y="16" width="8" height="4" rx="1" fill="#FFFFBB"/>
+      <rect x="83" y="19" width="8" height="3" rx="1" fill="#FF3300"/>
+      <!-- フロントタイヤ（大型白ハブキャップ） -->
+      <circle cx="22" cy="30" r="7.5" fill="#1A1A1A"/>
+      <circle cx="22" cy="30" r="5"   fill="#DDDDDD"/>
+      <circle cx="22" cy="30" r="2.2" fill="#444"/>
+      <circle cx="22" cy="30" r="0.8" fill="#CCC"/>
+      <!-- リアタイヤ（大型白ハブキャップ） -->
+      <circle cx="74" cy="30" r="7.5" fill="#1A1A1A"/>
+      <circle cx="74" cy="30" r="5"   fill="#DDDDDD"/>
+      <circle cx="74" cy="30" r="2.2" fill="#444"/>
+      <circle cx="74" cy="30" r="0.8" fill="#CCC"/>
+    </svg>`,
+    // ワゴン - 超背高・ボックス型
+    `<svg viewBox="0 0 84 40" width="80" height="38">
+      <rect x="4" y="10" width="76" height="24" rx="2" fill="#1A4A2A"/>
+      <rect x="6" y="4" width="72" height="8" rx="2" fill="#151D28"/>
+      <rect x="8" y="5" width="68" height="14" rx="1" fill="#5588AA" opacity=".75"/>
+      <rect x="8" y="20" width="30" height="12" rx="1" fill="#5588AA" opacity=".75"/>
+      <rect x="46" y="20" width="30" height="12" rx="1" fill="#5588AA" opacity=".75"/>
+      <circle cx="18" cy="36" r="5.5" fill="#1A1A1A"/><circle cx="18" cy="36" r="2.8" fill="#CCCCCC"/>
+      <circle cx="66" cy="36" r="5.5" fill="#1A1A1A"/><circle cx="66" cy="36" r="2.8" fill="#CCCCCC"/>
+    </svg>`,
+    // TUK-TUK - 参考画像準拠（側面図：大型幌・前1輪・黄色リム）
+    `<svg viewBox="0 0 90 46" width="86" height="44">
+      <!-- 幌（キャノピー）大型・前後にオーバーハング -->
+      <rect x="2" y="5" width="82" height="6" rx="3" fill="#CC2200"/>
+      <rect x="2" y="10" width="82" height="2" rx="1" fill="#991800"/>
+      <!-- フロントピラー -->
+      <rect x="3" y="12" width="4" height="17" rx="1" fill="#CC2200"/>
+      <!-- リアピラー -->
+      <rect x="79" y="12" width="4" height="17" rx="1" fill="#CC2200"/>
+      <!-- フロントカウル（エンジン・ドライバー席） -->
+      <rect x="5" y="12" width="28" height="18" rx="2" fill="#CC2200"/>
+      <!-- フロントウィンドウ（縦長・立ち気味） -->
+      <rect x="7" y="13" width="18" height="14" rx="1" fill="#5AADCC" opacity=".82"/>
+      <!-- エンジンバンプ（下部） -->
+      <rect x="6" y="26" width="24" height="5" rx="2" fill="#991800"/>
+      <!-- 客席フロア -->
+      <rect x="32" y="21" width="48" height="9" rx="1" fill="#CC2200"/>
+      <!-- 客席後部パネル -->
+      <rect x="76" y="14" width="5" height="16" rx="1" fill="#991800"/>
+      <!-- アンダーフレーム -->
+      <rect x="5" y="29" width="76" height="4" rx="2" fill="#881100"/>
+      <!-- フロント1輪（単輪・黄リム） -->
+      <circle cx="18" cy="39" r="7.5" fill="#1A1A1A"/>
+      <circle cx="18" cy="39" r="4"   fill="#FFCC00"/>
+      <circle cx="18" cy="39" r="1.8" fill="#333"/>
+      <!-- リア1輪（側面から見えるもの） -->
+      <circle cx="68" cy="39" r="7.5" fill="#1A1A1A"/>
+      <circle cx="68" cy="39" r="4"   fill="#FFCC00"/>
+      <circle cx="68" cy="39" r="1.8" fill="#333"/>
+      <!-- ハンドル -->
+      <rect x="6" y="21" width="14" height="2" rx="1" fill="#888"/>
+    </svg>`,
+  ];
+  const statNames = ['加速','最高速','耐久'];
+  const statCols  = ['#FF6644','#44AAFF','#44DD88'];
+  VEHICLES.forEach((v, i) => {
+    const card = document.createElement('div');
+    card.className = 'veh-card' + (i===selectedVehicle?' sel':'');
+    card.onclick = () => {
+      selectedVehicle = i;
+      grid.querySelectorAll('.veh-card').forEach((el,j)=>el.classList.toggle('sel',j===i));
+    };
+    card.innerHTML = `
+      <div class="veh-preview">${VEH_SVG[i]}</div>
+      <div class="vn">${v.name}</div>
+      <div class="vd">${v.desc}</div>
+      ${v.stat.map((s,si)=>`
+        <div class="stat-row">
+          <span class="stat-lbl">${statNames[si]}</span>
+          <div class="stat-bar"><div class="stat-fill" style="width:${s/5*100}%;background:${statCols[si]}"></div></div>
+        </div>`).join('')}`;
+    grid.appendChild(card);
   });
+}
+
+function confirmVehicle() {
+  document.getElementById('vehiclesel').style.display='none';
+  buildCarModel(selectedVehicle);
   startGame();
 }
 
@@ -1905,6 +2317,7 @@ function endGame() {
 
 function startGame() {
   document.getElementById('charsel').style.display='none';
+  document.getElementById('vehiclesel').style.display='none';
   document.getElementById('result').style.display='none';
   G.phase='PLAY'; G.carState='SEEK';
   G.timer=75; G.earn=0; G.deliveries=0;
