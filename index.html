@@ -1688,7 +1688,7 @@ function gameLogic(dt) {
       let speedBonus=0, etxt='GOOD', ecol='#ffffff';
       if      (kmh>55){ etxt='KAMIKAZE!'; ecol='#FFD700'; speedBonus=500; G.timer+=5; }
       else if (kmh>22){ etxt='GREAT!';    ecol='#FFFF44'; speedBonus=200; G.timer+=2; }
-      // 連続配達ボーナス
+      // 連続送迎ボーナス
       G.consec++; G.maxConsec=Math.max(G.maxConsec,G.consec);
       const consecBonus = G.consec>=3 ? G.consec*200 : 0;
       const total = f + tips + speedBonus + consecBonus;
@@ -1897,9 +1897,9 @@ function endGame() {
   document.getElementById('rm').textContent=G.earn.toLocaleString();
   document.getElementById('rl').textContent=r;
   document.getElementById('rdeliveries').textContent=
-    `配達数: ${G.deliveries}回　最大コンボ: ×${(G.maxCombo||G.combo).toFixed(1)}`;
+    `送迎数: ${G.deliveries}回　最大コンボ: ×${(G.maxCombo||G.combo).toFixed(1)}`;
   document.getElementById('rconsec').textContent=
-    G.maxConsec>=3 ? `🔥 最大連続配達: ${G.maxConsec}回！` : '';
+    G.maxConsec>=3 ? `🔥 最大連続送迎: ${G.maxConsec}回！` : '';
   document.getElementById('result').style.display='flex';
 }
 
