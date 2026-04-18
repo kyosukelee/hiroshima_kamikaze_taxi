@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>広島神風タクシー – Phase 2</title>
+<title>広島神風タクシー</title>
 <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -72,20 +72,57 @@ body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-
 #result h1{font-size:54px;text-shadow:3px 3px 0 #000;margin-bottom:18px;}
 .rd{font-size:22px;color:#fff;margin:6px 0;}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+@keyframes comboPulse{0%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.22)}100%{transform:translate(-50%,-50%) scale(1)}}
+/* ── キャラ選択 ──────────────────────────────── */
+#charsel{background:linear-gradient(160deg,#1a1a2e 0%,#0f3460 100%);display:none;overflow-y:auto;}
+#charsel h2{font-size:22px;color:#FFD700;margin-bottom:14px;text-align:center;}
+.char-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;width:min(520px,96vw);padding:0 8px;}
+.char-card{background:rgba(0,0,0,.55);border:2px solid rgba(255,200,0,.5);border-radius:10px;
+  padding:10px 12px;cursor:pointer;transition:border-color .15s,background .15s;text-align:center;}
+.char-card:hover,.char-card.sel{border-color:#FFD700;background:rgba(255,200,0,.18);}
+.char-card .cn{font-size:15px;color:#FFD700;margin-bottom:4px;}
+.char-card .cq{font-size:11px;color:#aaa;margin-bottom:6px;}
+.char-car{width:48px;height:28px;border-radius:4px;margin:0 auto 6px;border:1.5px solid rgba(255,255,255,.25);}
+.stat-row{display:flex;align-items:center;gap:5px;margin:2px 0;font-size:11px;}
+.stat-lbl{width:30px;color:#ccc;text-align:left;}
+.stat-bar{flex:1;height:7px;background:rgba(255,255,255,.12);border-radius:3px;overflow:hidden;}
+.stat-fill{height:100%;border-radius:3px;transition:width .3s;}
+/* ── 乗客タイマーバー ─────────────────────────── */
+#pax-bar{position:absolute;bottom:198px;left:50%;transform:translateX(-50%);
+  width:180px;height:6px;background:rgba(0,0,0,.5);border-radius:3px;display:none;overflow:hidden;}
+#pax-fill{height:100%;background:#44FF88;border-radius:3px;transition:width .1s linear;}
+/* ── ご当地イベント ───────────────────────────── */
+#local-event{position:absolute;top:48px;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,.78);border:1.5px solid rgba(255,200,100,.7);border-radius:6px;
+  padding:5px 14px;font-size:13px;color:#FFE088;font-family:'DotGothic16',monospace;
+  text-align:center;pointer-events:none;opacity:0;white-space:nowrap;}
+/* ── レスポンシブ（横画面）─────────────────────── */
+@media (orientation:landscape) and (max-height:500px){
+  #tc{height:120px;}
+  #hs{bottom:130px;}#hstatus{bottom:130px;}#hf{bottom:130px;}
+  #hd{bottom:108px;}#pax-bar{bottom:142px;}#area-label{bottom:112px;}
+  #mm{width:84px;height:84px;top:48px;}
+}
 </style>
 </head>
 <body>
 
 <div id="title" class="scr">
   <h1>広島神風タクシー</h1>
-  <div class="sub">Phase 2 – 広島マップ</div>
+  <div class="sub">広島マップ全制覇版</div>
   <div class="sub2">平和大通り・広島高速・全21目的地</div>
   <div class="op">🟢 緑マーカーに近づき<b>ゆっくり停車</b> → 乗車</div>
   <div class="op">🔴 赤マーカーの目的地へ<b>爆走</b>して届ける！</div>
   <div class="op" style="margin-top:8px"><b>W / ↑</b> アクセル &nbsp;
     <b>S / ↓</b> ブレーキ &nbsp; <b>A D / ← →</b> ステアリング</div>
   <div class="op"><b>Shift</b> 神風ダッシュ &nbsp;|&nbsp; <b>🟣 空港</b>は高速道路で！</div>
-  <button class="start-btn" onclick="startGame()">ゲームスタート！</button>
+  <button class="start-btn" onclick="showCharSel()">キャラ選択 →</button>
+</div>
+
+<div id="charsel" class="scr">
+  <h2>🚕 ドライバー選択</h2>
+  <div class="char-grid" id="char-grid"></div>
+  <button class="start-btn" style="margin-top:16px;font-size:18px;padding:12px 36px;" onclick="confirmChar()">出発！ ▶</button>
 </div>
 
 <canvas id="gc"></canvas>
@@ -100,6 +137,8 @@ body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-
   <div id="hd">➤ <span id="dn">---</span>&nbsp; <span id="dd">0m</span></div>
   <div id="et"></div>
   <div id="st"></div>
+  <div id="pax-bar"><div id="pax-fill"></div></div>
+  <div id="local-event"></div>
   <canvas id="mm" width="110" height="110"></canvas>
   <div id="area-label"></div>
 </div>
@@ -124,7 +163,8 @@ body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-
   <div class="rd">総売上&nbsp; ¥<span id="rm">0</span></div>
   <div class="rd">ランク&nbsp; <span id="rl">-</span></div>
   <div class="rd" id="rdeliveries" style="color:#aaa;font-size:16px;margin-top:8px;"></div>
-  <button class="start-btn" style="font-size:18px;padding:12px 36px;" onclick="startGame()">もう一度！</button>
+  <div class="rd" id="rconsec" style="color:#FFD700;font-size:15px;"></div>
+  <button class="start-btn" style="font-size:18px;padding:12px 36px;margin-top:12px;" onclick="showCharSel()">もう一度！</button>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -153,6 +193,25 @@ const MAP_XMIN = -182, MAP_XMAX = 264;
 const MAP_ZMIN = -196, MAP_ZMAX = 118;
 
 // ═══════════════════════════════════════════════════════════════
+//  CHARACTERS (Phase 5)
+// ═══════════════════════════════════════════════════════════════
+const CHARS = [
+  { name:'鯉太郎',      quote:'カープ魂で届けるけぇ！',
+    accel:1.0, maxSpd:1.0, durability:1.0, carCol:0xCC2222,
+    stat:[3,3,3], color:'#CC4444' },
+  { name:'もみじ姐さん', quote:'しゃんしゃん走るけぇね！',
+    accel:0.72, maxSpd:1.42, durability:0.8, carCol:0xCC7700,
+    stat:[2,5,2], color:'#DDAA44' },
+  { name:'テッパン政',  quote:'アツアツで届けるけぇ！',
+    accel:1.62, maxSpd:0.74, durability:1.0, carCol:0xFFD700,
+    stat:[5,2,3], color:'#FFD700' },
+  { name:'原爆ドームじいちゃん', quote:'この道はワシが一番知っとる',
+    accel:0.72, maxSpd:0.74, durability:1.62, carCol:0x333333,
+    stat:[2,2,5], color:'#AAAAAA' },
+];
+let selectedChar = 0;
+
+// ═══════════════════════════════════════════════════════════════
 //  GAME STATE
 // ═══════════════════════════════════════════════════════════════
 const G = {
@@ -173,6 +232,21 @@ const G = {
     gasK:false, brkK:false, lK:false, rK:false, dashK:false,
     gasT:false, brkT:false, lT:false, rT:false, dashT:false, revT:false, revK:false
   },
+  // Phase 4 additions
+  combo:      1.0,
+  tripTips:   0,
+  paxTimer:   0,
+  paxTimerMax:60,
+  consec:     0,
+  maxConsec:  0,
+  prevHdg:    0,
+  driftTimer: 0,
+  driftCool:  0,
+  nearCool:   0,
+  inAir:      false,
+  jumpVel:    0,
+  jumpCool:   0,
+  localEventTimer: 25,
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -812,11 +886,10 @@ function updateTrams(dt) {
         G.combo = 1.0;
       }
     } else if (dist < TRAM_NEAR_R && G.phase === 'PLAY') {
-      // ニアミス（Phase3コンボフック）
       const now = G.timer;
       if (now - tramLastNearMs > 2.0) {
         tramLastNearMs = now;
-        showEval('広電ニアミス！', '#44AAFF', 1.4);
+        addTip('near');
       }
     }
   });
@@ -996,7 +1069,7 @@ function updateNpcs(dt) {
       const now = G.timer;
       if (now - npcLastNearMs > 1.5) {
         npcLastNearMs = now;
-        showEval('ニアミス！', '#FF8800', 1.2);
+        addTip('near');
       }
     }
   });
@@ -1199,28 +1272,32 @@ function resolveCollisions(newX, newZ) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  PHYSICS
+//  PHYSICS (Phase 4: char stats / drift / jump)
 // ═══════════════════════════════════════════════════════════════
 function physics(dt) {
+  const ch = CHARS[selectedChar];
+  const effAccel   = ACCEL   * ch.accel;
+  const effMaxSpd  = MAX_SPD * ch.maxSpd;
+  const effDashSpd = DASH_SPD * ch.maxSpd;
+
   const i=G.inp;
   const gas=i.gasK||i.gasT, brk=i.brkK||i.brkT;
-  const rev=i.revK||i.revT;  // ▼後進：キーボード or タッチ
+  const rev=i.revK||i.revT;
   const lft=i.lK||i.lT, rgt=i.rK||i.rT, dash=i.dashK||i.dashT;
-  const mxs = dash ? DASH_SPD : MAX_SPD;
+  const mxs = dash ? effDashSpd : effMaxSpd;
   if (gas) {
-    // ▲前進
-    G.spd = G.spd<0 ? G.spd+BRAKE_F*dt : Math.min(G.spd+(dash?ACCEL*2.2:ACCEL)*dt, mxs);
+    G.spd = G.spd<0 ? G.spd+BRAKE_F*dt : Math.min(G.spd+(dash?effAccel*2.2:effAccel)*dt, mxs);
   } else if (rev) {
-    // ▼後進：速度をマイナス方向へ
-    G.spd = G.spd>0 ? G.spd-BRAKE_F*dt : Math.max(G.spd-ACCEL*.55*dt,-9);
+    G.spd = G.spd>0 ? G.spd-BRAKE_F*dt : Math.max(G.spd-effAccel*.55*dt,-9);
   } else if (brk) {
-    // ■ブレーキ：進行方向に関わらず強制減速→停止
     const f=BRAKE_F*dt;
     G.spd = Math.abs(G.spd)<f ? 0 : G.spd-Math.sign(G.spd)*f;
   } else {
     const f=FRICTION*dt;
     G.spd = Math.abs(G.spd)<f ? 0 : G.spd-Math.sign(G.spd)*f;
   }
+
+  const hdgPrev = G.hdg;
   if (Math.abs(G.spd)>.4) {
     const sr=Math.min(Math.abs(G.spd)/MAX_SPD,1);
     const tr=TURN_SLOW+(TURN_FAST-TURN_SLOW)*sr;
@@ -1228,10 +1305,20 @@ function physics(dt) {
     if (lft) G.hdg+=tr*dt*ddir;
     if (rgt) G.hdg-=tr*dt*ddir;
   }
+
+  // ── ドリフト判定 ──────────────────────────────────────
+  const hdgRate = Math.abs(G.hdg - hdgPrev) / dt;
+  G.driftCool  = Math.max(0, G.driftCool - dt);
+  G.driftTimer = (hdgRate > 1.1 && Math.abs(G.spd) > effMaxSpd * 0.45)
+    ? G.driftTimer + dt : 0;
+  if (G.driftTimer > 0.28 && G.driftCool <= 0) {
+    addTip('drift'); G.driftTimer = 0; G.driftCool = 1.4;
+  }
+
   const prev = G.pos.clone();
-  const sh=Math.sin(G.hdg), ch=Math.cos(G.hdg);
+  const sh=Math.sin(G.hdg), cv=Math.cos(G.hdg);
   let nx = G.pos.x - sh*G.spd*dt;
-  let nz = G.pos.z - ch*G.spd*dt;
+  let nz = G.pos.z - cv*G.spd*dt;
   nx = Math.max(MAP_XMIN, Math.min(MAP_XMAX, nx));
   nz = Math.max(MAP_ZMIN, Math.min(MAP_ZMAX, nz));
 
@@ -1239,18 +1326,35 @@ function physics(dt) {
   const { rx, rz, hit } = resolveCollisions(nx, nz);
   G.pos.x = rx;
   G.pos.z = rz;
-  G.pos.y = .5;
+
+  // ── ジャンプ物理 ──────────────────────────────────────
+  G.jumpCool = Math.max(0, G.jumpCool - dt);
+  if (!G.inAir && G.jumpCool <= 0 && isOnSlope() && G.spd > effMaxSpd * 0.65) {
+    G.inAir   = true;
+    G.jumpVel = 9.5 + G.spd * 0.18;
+    G.jumpCool = 3.0;
+    addTip('jump');
+  }
+  if (G.inAir) {
+    G.jumpVel -= 18 * dt;
+    G.pos.y    = Math.max(0.5, G.pos.y + G.jumpVel * dt);
+    if (G.pos.y <= 0.5 && G.jumpVel < 0) {
+      G.inAir = false; G.jumpVel = 0; G.pos.y = 0.5;
+    }
+  } else {
+    G.pos.y = 0.5;
+  }
 
   if (hit) {
     const now = G.timer;
-    if (now - lastHitTime > 0.4) { // cooldown 0.4s
+    if (now - lastHitTime > 0.4) {
       lastHitTime = now;
       const impact = Math.abs(G.spd);
-      G.spd *= -0.25; // bounce back slightly
+      G.spd *= -0.25 * ch.durability;
       if (impact > 3) {
         showEval('衝突！', '#FF4444', 1.2);
-        shakeTimer = 0.28;
-        G.combo = 1.0; // reset combo (Phase 3 hook)
+        shakeTimer = 0.28 / ch.durability;
+        G.combo = 1.0; G.consec = 0;
       }
     } else {
       G.spd = 0;
@@ -1404,7 +1508,52 @@ const HWY_LINES = [
 ];
 
 // ═══════════════════════════════════════════════════════════════
-//  GAME LOGIC
+//  TIP SYSTEM (Phase 4)
+// ═══════════════════════════════════════════════════════════════
+const TIP_BASE = { drift:50, near:30, jump:100, hop:20, dash:25 };
+const TIP_LABEL = {
+  drift: ['神風ドリフト！','ドリフト！'],
+  near:  ['ニアミス！','広電ニアミス！'],
+  jump:  ['神風ジャンプ！！'],
+  hop:   ['神風ホップ！'],
+  dash:  ['神風ダッシュ！'],
+};
+function addTip(type) {
+  if (G.carState !== 'RIDE') return;
+  const base  = TIP_BASE[type] || 20;
+  const spdBonus = Math.floor(Math.abs(G.spd) / 4);
+  const amount   = base + spdBonus;
+  G.tripTips += amount;
+  G.combo = Math.min(5.0, parseFloat((G.combo + 0.35).toFixed(1)));
+  const labels = TIP_LABEL[type] || ['テクニック！'];
+  const lbl    = labels[Math.floor(Math.random()*labels.length)];
+  showEval(`${lbl} +¥${amount}`, '#FFD700', 1.1);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  LOCAL EVENTS (Phase 5)
+// ═══════════════════════════════════════════════════════════════
+const LOCAL_EVENTS = [
+  '⚾ カープ試合日！マツダスタジアム周辺大混雑！',
+  '🎆 宮島花火大会！宮島口方面は大渋滞じゃ！',
+  '🏮 とうかさん開催中！紙屋町・広島駅周辺混雑！',
+  '🌊 太田川花火大会！河川敷エリアは人でいっぱいじゃ！',
+  '🍁 もみじまつり！比治山公園の紅葉が見頃じゃ！',
+  '🐟 お魚天国！広島港に新鮮なカキが入ったけぇ！',
+  '🏰 広島城夜間特別開放！城北エリアは観光客だらけじゃ！',
+];
+let localEventIdx = 0;
+function triggerLocalEvent() {
+  const txt = LOCAL_EVENTS[localEventIdx % LOCAL_EVENTS.length];
+  localEventIdx++;
+  const el = document.getElementById('local-event');
+  el.textContent = txt; el.style.opacity = '1';
+  setTimeout(() => { el.style.transition='opacity 1s'; el.style.opacity='0';
+    setTimeout(()=>{ el.style.transition=''; }, 1100); }, 5000);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  GAME LOGIC (Phase 4)
 // ═══════════════════════════════════════════════════════════════
 let onHighwaySince = -1;
 
@@ -1412,6 +1561,13 @@ function gameLogic(dt) {
   if (G.phase!=='PLAY') return;
   G.timer-=dt;
   if (G.timer<=0) { G.timer=0; endGame(); return; }
+
+  // ── ご当地イベント ───────────────────────────────────
+  G.localEventTimer -= dt;
+  if (G.localEventTimer <= 0) {
+    triggerLocalEvent();
+    G.localEventTimer = 28 + Math.random() * 32;
+  }
 
   // Area label
   document.getElementById('area-label').textContent = getAreaName();
@@ -1421,9 +1577,7 @@ function gameLogic(dt) {
   if (isOnHwy && onHighwaySince<0) {
     onHighwaySince = G.timer;
     showEval('高速道路', '#AAFFFF', 1.5);
-  } else if (!isOnHwy) {
-    onHighwaySince = -1;
-  }
+  } else if (!isOnHwy) { onHighwaySince = -1; }
 
   // Proximity rings
   let nearestPax=null, nearestD=999;
@@ -1455,12 +1609,17 @@ function gameLogic(dt) {
       if (!p.active) return;
       if (G.pos.distanceTo(p.pos)<PICKUP_R && Math.abs(G.spd)<10) {
         p.active=false; p.mesh.visible=false;
-        G.carState='RIDE'; G.tripDist=0;
+        G.carState='RIDE'; G.tripDist=0; G.tripTips=0;
         const d2d=p.pos.distanceTo(G.dest.pos);
-        G.timer += d2d>90?30 : d2d>45?22 : 15;
+        const timerBonus = d2d>90?30 : d2d>45?22 : 15;
+        G.timer += timerBonus;
+        // 個別制限時間（距離に応じて45〜90秒）
+        G.paxTimerMax = d2d>90?90 : d2d>45?65 : 45;
+        G.paxTimer    = G.paxTimerMax;
         G.dest.mesh.visible=true;
         document.getElementById('hf').style.display='';
         document.getElementById('hd').style.display='';
+        document.getElementById('pax-bar').style.display='';
         document.getElementById('dn').textContent=G.dest.name;
         showEval('乗車！','#00FF88',1.8);
         const isAirport = G.dest.name.includes('空港');
@@ -1468,6 +1627,27 @@ function gameLogic(dt) {
         paxRespawnT=8;
       }
     });
+  }
+
+  // ── 個別制限タイマー ─────────────────────────────────
+  if (G.carState==='RIDE') {
+    G.paxTimer -= dt;
+    if (G.paxTimer <= 0) {
+      // 時間切れ → 途中降車・運賃ゼロ
+      G.paxTimer = 0;
+      showEval('時間切れ！運賃ゼロ…', '#FF4444', 2.5);
+      showStatus('「もうええわ！降りるけぇ！」');
+      G.carState='WAIT'; G.tripTips=0; G.combo=1.0; G.consec=0;
+      G.dest.mesh.visible=false;
+      document.getElementById('hf').style.display='none';
+      document.getElementById('hd').style.display='none';
+      document.getElementById('pax-bar').style.display='none';
+      destI=(destI+1)%DEST_POOL.length;
+      G.dest.pos.copy(DEST_POOL[destI].pos);
+      G.dest.name=DEST_POOL[destI].name;
+      G.dest.mesh.position.copy(DEST_POOL[destI].pos);
+      setTimeout(()=>{ G.carState='SEEK'; }, 2400);
+    }
   }
 
   // Passenger respawn
@@ -1480,11 +1660,12 @@ function gameLogic(dt) {
         G.pax[di].pos.copy(src);
         G.pax[di].mesh.position.copy(src);
         G.pax[di].active=true; G.pax[di].mesh.visible=true;
+        updatePaxColor(G.pax[di]);
       }
     }
   }
 
-  // Arrival check
+  // ── 到着判定 ─────────────────────────────────────────
   if (G.carState==='RIDE') {
     const distToDest=G.pos.distanceTo(G.dest.pos);
     const realDist=getDistReal(G.tripDist+distToDest);
@@ -1497,36 +1678,53 @@ function gameLogic(dt) {
       showEval(isOnHwy&&Math.random()<.4?rand(HWY_LINES):rand(DRIVE_LINES), '#AADDFF', 1.4);
 
     if (distToDest<ARRIVE_R && Math.abs(G.spd)<ARRIVE_MAX_SPD) {
-      const f=calcFare(getDistReal(G.tripDist+distToDest));
-      const kmh=G.spd*3.6;
-      let bonus=0, etxt='GOOD', ecol='#ffffff';
-      if      (kmh>55){ etxt='KAMIKAZE!'; ecol='#FFD700'; bonus=500; G.timer+=5; }
-      else if (kmh>22){ etxt='GREAT!';    ecol='#FFFF44'; bonus=200; G.timer+=2; }
-      G.earn+=f+bonus; G.deliveries++;
+      const f   = calcFare(getDistReal(G.tripDist+distToDest));
+      const tips = Math.floor(G.tripTips * G.combo);
+      const kmh  = G.spd*3.6;
+      let speedBonus=0, etxt='GOOD', ecol='#ffffff';
+      if      (kmh>55){ etxt='KAMIKAZE!'; ecol='#FFD700'; speedBonus=500; G.timer+=5; }
+      else if (kmh>22){ etxt='GREAT!';    ecol='#FFFF44'; speedBonus=200; G.timer+=2; }
+      // 連続配達ボーナス
+      G.consec++; G.maxConsec=Math.max(G.maxConsec,G.consec);
+      const consecBonus = G.consec>=3 ? G.consec*200 : 0;
+      const total = f + tips + speedBonus + consecBonus;
+      G.earn += total; G.deliveries++;
+      const breakdownParts = [`基本¥${f.toLocaleString()}`];
+      if (tips>0)        breakdownParts.push(`チップ¥${tips.toLocaleString()}`);
+      if (speedBonus>0)  breakdownParts.push(`速達¥${speedBonus}`);
+      if (consecBonus>0) breakdownParts.push(`連続×${G.consec}ボーナス¥${consecBonus}`);
       showEval(etxt, ecol, 2.8);
-      showStatus(`${rand(ARRIVE_LINES)}\n+¥${(f+bonus).toLocaleString()}`);
+      showStatus(`${rand(ARRIVE_LINES)}\n${breakdownParts.join('  ')}\n合計+¥${total.toLocaleString()}`);
+      G.combo = Math.min(5.0, parseFloat((G.combo + 0.1).toFixed(1)));
+      G.tripTips=0;
       G.carState='WAIT';
       G.dest.mesh.visible=false;
       pickupRing.visible=false; arriveRing.visible=false;
       document.getElementById('hf').style.display='none';
       document.getElementById('hd').style.display='none';
+      document.getElementById('pax-bar').style.display='none';
       destI=(destI+1)%DEST_POOL.length;
       G.dest.pos.copy(DEST_POOL[destI].pos);
       G.dest.name=DEST_POOL[destI].name;
       G.dest.mesh.position.copy(DEST_POOL[destI].pos);
+      // 次の乗客の色更新
+      G.pax.forEach(p=>{ if(p.active) updatePaxColor(p); });
       setTimeout(()=>{ G.carState='SEEK'; }, 2400);
     }
   }
 
-  if ((G.inp.dashK||G.inp.dashT)&&G.spd>8&&G.etTimer<=0)
-    showEval('神風ダッシュ！','#FF8800',.7);
+  // 神風ダッシュでチップ（乗車中のみ）
+  if ((G.inp.dashK||G.inp.dashT) && G.spd>8 && G.etTimer<=0) {
+    if (G.carState==='RIDE') addTip('dash');
+    else showEval('神風ダッシュ！','#FF8800',.7);
+  }
 
   G.etTimer-=dt; if(G.etTimer<=0) document.getElementById('et').style.opacity='0';
   G.stTimer-=dt; if(G.stTimer<=0) document.getElementById('st').style.opacity='0';
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  HUD
+//  HUD (Phase 4)
 // ═══════════════════════════════════════════════════════════════
 function updateHUD() {
   document.getElementById('mv').textContent=G.earn.toLocaleString();
@@ -1534,6 +1732,22 @@ function updateHUD() {
   document.getElementById('tv').textContent=`${m}:${s}`;
   document.getElementById('ht').className=t<30?'hp red':'hp';
   document.getElementById('sv').textContent=Math.abs(Math.floor(G.spd*3.6));
+
+  // コンボ倍率（色は倍率に応じて変化）
+  const cv = document.getElementById('cv');
+  cv.textContent = G.combo.toFixed(1);
+  const hc = document.getElementById('hc');
+  hc.style.color = G.combo>=4?'#FF4444':G.combo>=3?'#FF8800':G.combo>=2?'#FFD700':'#FF8800';
+  hc.style.fontSize = G.combo>=3?'22px':'18px';
+
+  // 乗客タイマーバー
+  if (G.carState==='RIDE' && G.paxTimerMax>0) {
+    const pct = Math.max(0, G.paxTimer/G.paxTimerMax)*100;
+    const fill = document.getElementById('pax-fill');
+    fill.style.width = pct+'%';
+    fill.style.background = pct>50?'#44FF88':pct>25?'#FFCC00':'#FF4444';
+  }
+
   // 空車 / 賃走 表示
   const st=document.getElementById('hstatus');
   const onRide = G.carState==='RIDE'||G.carState==='WAIT';
@@ -1603,6 +1817,69 @@ function updateMM() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  PASSENGER COLOR (Phase 5 – 距離で色分け)
+// ═══════════════════════════════════════════════════════════════
+function updatePaxColor(p) {
+  // 次の目的地との距離で色分け: 近=緑 中=黄 遠=赤 超遠=紫
+  const d = p.pos.distanceTo(G.dest.pos);
+  let col;
+  if      (d < 45)  col = 0x00DD44;  // 近（緑）
+  else if (d < 100) col = 0xDDAA00;  // 中（黄）
+  else if (d < 200) col = 0xFF3300;  // 遠（赤）
+  else              col = 0xAA44FF;  // 超遠・空港（紫）
+  // マーカーの色マテリアルを更新（子要素0=ディスク, 1=ポール, 2=ボール）
+  if (p.mesh) {
+    [0,1,2].forEach(ci => {
+      const child = p.mesh.children[ci];
+      if (child && child.material) child.material.color.setHex(col);
+    });
+  }
+  p.color = col;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CHAR SELECT (Phase 5)
+// ═══════════════════════════════════════════════════════════════
+function showCharSel() {
+  document.getElementById('title').style.display='none';
+  document.getElementById('result').style.display='none';
+  document.getElementById('charsel').style.display='flex';
+  const grid = document.getElementById('char-grid');
+  grid.innerHTML = '';
+  CHARS.forEach((c, i) => {
+    const card = document.createElement('div');
+    card.className = 'char-card' + (i===selectedChar?' sel':'');
+    card.onclick = () => {
+      selectedChar = i;
+      grid.querySelectorAll('.char-card').forEach((el,j)=>
+        el.classList.toggle('sel', j===i));
+    };
+    const statNames = ['加速','最高速','耐久'];
+    const statCols  = ['#FF6644','#44AAFF','#44DD88'];
+    card.innerHTML = `
+      <div class="char-car" style="background:${c.color}"></div>
+      <div class="cn">${c.name}</div>
+      <div class="cq">${c.quote}</div>
+      ${c.stat.map((v,si)=>`
+        <div class="stat-row">
+          <span class="stat-lbl">${statNames[si]}</span>
+          <div class="stat-bar"><div class="stat-fill" style="width:${v/5*100}%;background:${statCols[si]}"></div></div>
+        </div>`).join('')}`;
+    grid.appendChild(card);
+  });
+}
+
+function confirmChar() {
+  document.getElementById('charsel').style.display='none';
+  // タクシーの色をキャラに合わせて変更
+  const col = CHARS[selectedChar].carCol;
+  carGrp.children.forEach((c,i) => {
+    if (i===0 && c.material) c.material.color.setHex(col);
+  });
+  startGame();
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  END / START
 // ═══════════════════════════════════════════════════════════════
 function endGame() {
@@ -1613,19 +1890,29 @@ function endGame() {
   document.getElementById('rr').style.color=RC[r]||'#fff';
   document.getElementById('rm').textContent=G.earn.toLocaleString();
   document.getElementById('rl').textContent=r;
-  document.getElementById('rdeliveries').textContent=`配達数: ${G.deliveries} 回`;
+  document.getElementById('rdeliveries').textContent=
+    `配達数: ${G.deliveries}回  最大コンボ: ×${G.combo.toFixed(1)}`;
+  document.getElementById('rconsec').textContent=
+    G.maxConsec>=3 ? `🔥 最大連続配達: ${G.maxConsec}回！` : '';
   document.getElementById('result').style.display='flex';
 }
 
 function startGame() {
-  document.getElementById('title').style.display='none';
+  document.getElementById('charsel').style.display='none';
   document.getElementById('result').style.display='none';
   G.phase='PLAY'; G.carState='SEEK';
   G.timer=75; G.earn=0; G.deliveries=0;
   G.spd=0; G.hdg=0; G.tripDist=0;
-  G.pos.set(-60,.5,0);    // 平和大通り上（全乗客から13以上離れた位置）
-  camPos.set(-60,8,13);
   G.etTimer=0; G.stTimer=0;
+  // Phase 4 state reset
+  G.combo=1.0; G.tripTips=0;
+  G.paxTimer=0; G.paxTimerMax=60;
+  G.consec=0; G.maxConsec=0;
+  G.driftTimer=0; G.driftCool=0;
+  G.inAir=false; G.jumpVel=0; G.jumpCool=0;
+  G.localEventTimer=25;
+  G.pos.set(-60,.5,0);
+  camPos.set(-60,8,13);
   paxRespawnT=-1; extraPaxI=0; destI=0; onHighwaySince=-1;
   shakeTimer=0; lastHitTime=-999; tramLastNearMs=-999; npcLastNearMs=-999;
   // 路面電車リセット
@@ -1655,12 +1942,15 @@ function startGame() {
     p.pos.copy(src.pos); p.active=true;
     p.mesh.position.set(src.pos.x,0,src.pos.z);
     p.mesh.visible=true;
+    updatePaxColor(p);
   });
   document.getElementById('et').style.opacity='0';
   document.getElementById('st').style.opacity='0';
   document.getElementById('hf').style.display='none';
   document.getElementById('hd').style.display='none';
-  showStatus('客を探せ！\n🟢 緑マーカーに近づき\nゆっくり停車すると乗車！', 5);
+  document.getElementById('pax-bar').style.display='none';
+  const ch = CHARS[selectedChar];
+  showStatus(`${ch.name}で出発！\n${ch.quote}\n🟢 緑マーカーに近づいてゆっくり停車！`, 5);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1727,6 +2017,7 @@ buildNpcs();
 buildCar();
 buildMarkers();
 setupTouch();
+// タイトル画面を表示（ゲームループは先に起動）
 requestAnimationFrame(loop);
 </script>
 </body>
