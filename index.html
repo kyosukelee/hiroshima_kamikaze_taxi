@@ -29,7 +29,6 @@ body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-
 #hstatus{bottom:193px;left:128px;font-size:13px;font-weight:700;}
 #hstatus.vacant  {color:#44FF88;border-color:rgba(68,255,136,.6);}
 #hstatus.occupied{color:#FFAA44;border-color:rgba(255,170,68,.6);}
-#hf{display:none;} /* 旧fare表示は非表示 */
 /* ── 運賃メーター ────────────────────────────────── */
 #meter{position:absolute;bottom:95px;left:8px;
   background:#0A0A0A;border:2px solid #444;border-radius:6px;
@@ -125,19 +124,6 @@ body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-
 .stat-bar{flex:1;height:7px;background:#D8EAF8;border-radius:4px;overflow:hidden;}
 .stat-fill{height:100%;border-radius:4px;transition:width .3s;}
 
-/* ── 車両選択画面 ─────────────────────────────── */
-#vehiclesel{background:linear-gradient(160deg,#EAF4FF 0%,#C8E4FF 50%,#A0CFFF 100%);display:none;overflow-y:auto;}
-#vehiclesel h2{font-size:22px;font-weight:900;color:#0A3D7A;margin-bottom:14px;text-align:center;}
-.veh-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;width:min(540px,96vw);padding:0 8px;}
-.veh-card{background:var(--card-bg);border:2.5px solid #B0D4F0;border-radius:12px;
-  padding:10px 12px;cursor:pointer;transition:border-color .15s,box-shadow .15s;text-align:center;
-  box-shadow:0 2px 8px rgba(0,0,0,.08);}
-.veh-card:hover,.veh-card.sel{border-color:var(--primary);box-shadow:0 4px 16px rgba(26,107,196,.28);}
-.veh-card .vn{font-size:15px;font-weight:900;color:var(--dark);margin-bottom:2px;}
-.veh-card .vd{font-size:10px;color:#888;margin-bottom:7px;}
-.veh-preview{width:100%;height:52px;border-radius:6px;margin:0 auto 8px;
-  display:flex;align-items:center;justify-content:center;overflow:hidden;
-  border:1.5px solid rgba(0,0,0,.1);background:#F5F8FC;}
 #result{background:linear-gradient(160deg,#EAF4FF 0%,#C8E4FF 50%,#A0CFFF 100%);display:none;}
 #result h1{font-size:52px;font-weight:900;text-shadow:2px 2px 0 rgba(0,0,0,.1);margin-bottom:14px;}
 .rd{font-size:20px;font-weight:700;color:var(--dark);margin:5px 0;}
@@ -149,7 +135,7 @@ body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-
 /* ── レスポンシブ（横画面）─────────────────────── */
 @media (orientation:landscape) and (max-height:500px){
   #tc{height:120px;}
-  #hs{bottom:130px;}#hstatus{bottom:130px;}#hf{bottom:130px;}
+  #hs{bottom:130px;}#hstatus{bottom:130px;}
   #hd{bottom:108px;}#pax-bar{bottom:142px;}#area-label{bottom:112px;}
   #mm{width:84px;height:84px;top:48px;}
   #meter{bottom:65px;left:8px;}
@@ -249,7 +235,7 @@ const MAP_XMIN = -182, MAP_XMAX = 264;
 const MAP_ZMIN = -196, MAP_ZMAX = 118;
 
 // ═══════════════════════════════════════════════════════════════
-//  CHARACTERS (Phase 5)
+//  CHARACTERS
 // ═══════════════════════════════════════════════════════════════
 const CHARS = [
   { name:'鯉太郎',      quote:'カープ魂で届けるけぇ！',
@@ -268,7 +254,7 @@ const CHARS = [
 let selectedChar = 0;
 
 // ═══════════════════════════════════════════════════════════════
-//  VEHICLES (Phase 5 – 車両選択)
+//  VEHICLES
 // ═══════════════════════════════════════════════════════════════
 const VEHICLES = [
   { name:'JPN TAXI',   desc:'安定・全場面で活躍',
@@ -303,7 +289,7 @@ const G = {
     gasK:false, brkK:false, lK:false, rK:false, dashK:false,
     gasT:false, lT:false, rT:false, dashT:false, revT:false, revK:false
   },
-  // Phase 4 additions
+  // テクニック・コンボ
   combo:      1.0,
   tripTips:   0,
   paxTimer:   0,
@@ -607,7 +593,7 @@ const SLOPE_LEN = 10;   // 坂の長さ（22→10: 宮島沿岸道路z=[87.5,96.
 const SLOPE_H   = 6;    // 坂の高さ
 const SLOPE_W   = 9;    // 坂の幅
 // ジャンプ判定エリア（坂の頂上付近）
-const JUMP_ZONE = { x:-130, z:70, r:10, h:SLOPE_H }; // Phase3でY座標チェックに使用
+const JUMP_ZONE = { x:-130, z:70, r:10, h:SLOPE_H }; // ジャンプゾーン判定用
 
 function buildHijiyamaSlope() {
   const slopeM  = mkMat(0x505848); // 暗めのアスファルト
@@ -684,7 +670,7 @@ function buildHijiyamaSlope() {
   scene.add(ramp);
 }
 
-// ジャンプゾーン判定（gameLogicから呼び出し用 - Phase3フック）
+// ジャンプゾーン判定
 function isOnSlope() {
   const dx = G.pos.x - JUMP_ZONE.x;
   const dz = G.pos.z - JUMP_ZONE.z;
@@ -1647,7 +1633,7 @@ function resolveCollisions(newX, newZ) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  PHYSICS (Phase 4: char stats / drift / jump)
+//  PHYSICS
 // ═══════════════════════════════════════════════════════════════
 function physics(dt) {
   const ch  = CHARS[selectedChar];
@@ -1762,11 +1748,6 @@ function updateCam(dt) {
 // ═══════════════════════════════════════════════════════════════
 //  FARE / RANK
 // ═══════════════════════════════════════════════════════════════
-function calcFare(distM) {
-  // 広島空港定額
-  if (distM > 40000) return 17000;
-  return 700 + Math.ceil(Math.max(0,distM-1150)/300)*100;
-}
 function getDistReal(gu) { return gu*GAME_SCALE; }
 function getRank(e) {
   return e>=30000?'S':e>=20000?'A':e>=12000?'B':e>=6000?'C':e>=3000?'D':'E';
@@ -1883,7 +1864,7 @@ const HWY_LINES = [
 ];
 
 // ═══════════════════════════════════════════════════════════════
-//  COLLISION PENALTY (Phase 4)  – チップマイナス・コンボリセット
+//  COLLISION PENALTY
 // ═══════════════════════════════════════════════════════════════
 function applyCollisionPenalty(label, shakeDur) {
   sndCollision();
@@ -1900,7 +1881,7 @@ function applyCollisionPenalty(label, shakeDur) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  TIP SYSTEM (Phase 4)
+//  TIP SYSTEM
 // ═══════════════════════════════════════════════════════════════
 const TIP_BASE = { drift:100, near:100, jump:200, hop:100, dash:100 };
 const TIP_LABEL = {
@@ -1930,7 +1911,7 @@ function addTip(type) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  GAME LOGIC (Phase 4)
+//  GAME LOGIC
 // ═══════════════════════════════════════════════════════════════
 let onHighwaySince = -1;
 
@@ -2116,7 +2097,7 @@ function gameLogic(dt) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  HUD (Phase 4)
+//  HUD
 // ═══════════════════════════════════════════════════════════════
 function updateHUD() {
   document.getElementById('mv').textContent=G.earn.toLocaleString();
@@ -2225,7 +2206,7 @@ function updateMM() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  PASSENGER COLOR (Phase 5 – 距離で色分け)
+//  PASSENGER COLOR
 // ═══════════════════════════════════════════════════════════════
 function updatePaxColor(p) {
   // 次の目的地との距離で色分け: 近=緑 中=黄 遠=赤 超遠=紫
@@ -2246,7 +2227,7 @@ function updatePaxColor(p) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  CHAR SELECT (Phase 5)
+//  CHAR SELECT
 // ═══════════════════════════════════════════════════════════════
 function showCharSel() {
   document.getElementById('title').style.display='none';
@@ -2344,7 +2325,6 @@ function startGame() {
   G.timer=75; G.earn=0; G.deliveries=0;
   G.spd=0; G.hdg=0; G.tripDist=0;
   G.etTimer=0; G.stTimer=0;
-  // Phase 4 state reset
   G.combo=1.0; G.tripTips=0;
   G.paxTimer=0; G.paxTimerMax=60;
   G.consec=0; G.maxConsec=0; G.maxCombo=1.0;
