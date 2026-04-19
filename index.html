@@ -26,10 +26,24 @@ body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-
 #ht.red{color:#ff5555;animation:blink .5s infinite;}
 #hc{top:12px;right:12px;color:#FF9020;font-size:17px;}
 #hs{bottom:193px;left:12px;}
-#hstatus{bottom:193px;left:108px;font-size:13px;font-weight:700;}
+#hstatus{bottom:193px;left:128px;font-size:13px;font-weight:700;}
 #hstatus.vacant  {color:#44FF88;border-color:rgba(68,255,136,.6);}
 #hstatus.occupied{color:#FFAA44;border-color:rgba(255,170,68,.6);}
-#hf{bottom:193px;right:12px;color:#88FFAA;display:none;}
+#hf{display:none;} /* 旧fare表示は非表示 */
+/* ── 運賃メーター ────────────────────────────────── */
+#meter{position:absolute;bottom:95px;left:8px;
+  background:#0A0A0A;border:2px solid #444;border-radius:6px;
+  padding:4px 10px 4px 10px;display:none;flex-direction:column;
+  align-items:center;min-width:90px;
+  box-shadow:0 0 8px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.06);}
+#meter-label{font-size:9px;font-weight:700;color:#888;letter-spacing:.12em;
+  text-transform:uppercase;margin-bottom:1px;}
+#meter-value{font-size:20px;font-weight:900;color:#FF4400;letter-spacing:.04em;
+  font-variant-numeric:tabular-nums;
+  text-shadow:0 0 8px rgba(255,80,0,.7);
+  transition:color .08s,text-shadow .08s;}
+#meter-value.flash{color:#FFFFFF;text-shadow:0 0 14px rgba(255,255,255,.9);}
+#meter-unit{font-size:9px;color:#666;margin-top:1px;}
 #hd{position:absolute;bottom:160px;left:50%;transform:translateX(-50%);
   background:rgba(15,15,25,.78);border:1.5px solid rgba(255,120,120,.6);
   border-radius:6px;padding:4px 14px;color:#FFCCCC;font-size:14px;font-weight:700;
@@ -44,7 +58,7 @@ body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-
   opacity:0;white-space:pre-line;line-height:1.7;}
 #mm{position:absolute;top:60px;right:12px;width:110px;height:110px;
   background:rgba(10,20,30,.88);border:1.5px solid rgba(255,220,100,.6);
-  border-radius:5px;overflow:hidden;}
+  border-radius:50%;overflow:hidden;}
 #area-label{position:absolute;bottom:168px;right:12px;font-size:11px;font-weight:700;
   color:rgba(220,235,255,.75);text-shadow:1px 1px 2px rgba(0,0,0,.8);pointer-events:none;}
 
@@ -138,6 +152,7 @@ body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-
   #hs{bottom:130px;}#hstatus{bottom:130px;}#hf{bottom:130px;}
   #hd{bottom:108px;}#pax-bar{bottom:142px;}#area-label{bottom:112px;}
   #mm{width:84px;height:84px;top:48px;}
+  #meter{bottom:65px;left:8px;}
 }
 </style>
 </head>
@@ -157,7 +172,7 @@ body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-
 <div id="charsel" class="scr">
   <h2>🚕 ドライバー選択</h2>
   <div class="char-grid" id="char-grid"></div>
-  <button class="start-btn" style="margin-top:16px;font-size:18px;padding:12px 36px;" onclick="confirmChar()">出発！ ▶</button>
+  <button class="start-btn" style="margin-top:16px;font-size:18px;padding:12px 36px;" onclick="confirmChar()">車両選択 →</button>
 </div>
 
 <div id="vehiclesel" class="scr">
@@ -174,7 +189,11 @@ body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-
   <div class="hp" id="hc">🔥 ×<span id="cv">1.0</span></div>
   <div class="hp" id="hs">🚗 <span id="sv">0</span> km/h</div>
   <div class="hp vacant" id="hstatus">空車</div>
-  <div class="hp" id="hf">💴 ¥<span id="fv">700</span></div>
+  <div id="meter">
+    <div id="meter-label">FARE</div>
+    <div id="meter-value">¥700</div>
+    <div id="meter-unit">円</div>
+  </div>
   <div id="hd">➤ <span id="dn">---</span>&nbsp; <span id="dd">0m</span></div>
   <div id="et"></div>
   <div id="st"></div>
@@ -193,7 +212,6 @@ body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-
   </div>
   <div id="tc-right">
     <div class="tb" id="tb-gas">▲</div>
-    <div class="tb" id="tb-brk">■</div>
     <div class="tb" id="tb-rev">▼</div>
   </div>
 </div>
@@ -214,8 +232,6 @@ body{background:#000;overflow:hidden;touch-action:none;user-select:none;-webkit-
 // ═══════════════════════════════════════════════════════════════
 //  CONSTANTS
 // ═══════════════════════════════════════════════════════════════
-const TAXI_BODY_COL = 0xFFD700;
-const TAXI_ROOF_COL = 0xCC0000;
 const BLD_COLS = [0xCC4444,0x4477CC,0x44AA55,0xCC8844,0x8855AA,0x44AACC,0xCC6644,0x7799AA];
 const MAX_SPD   = 28;
 const DASH_SPD  = 52;
@@ -285,7 +301,7 @@ const G = {
   dest: { pos: new THREE.Vector3(0,0,0), name:'---', mesh:null },
   inp: {
     gasK:false, brkK:false, lK:false, rK:false, dashK:false,
-    gasT:false, brkT:false, lT:false, rT:false, dashT:false, revT:false, revK:false
+    gasT:false, lT:false, rT:false, dashT:false, revT:false, revK:false
   },
   // Phase 4 additions
   combo:      1.0,
@@ -294,13 +310,16 @@ const G = {
   paxTimerMax:60,
   consec:     0,
   maxConsec:  0,
-  prevHdg:    0,
   driftTimer: 0,
   driftCool:  0,
-  nearCool:   0,
+  dashCool:   0,
   inAir:      false,
   jumpVel:    0,
   jumpCool:   0,
+  // 運賃メーター
+  meterFare:     700,
+  meterNextTick: 1150, // 次にメーターが上がる走行距離(m)
+  meterFlash:    0,    // フラッシュタイマー
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -1524,7 +1543,7 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => { keys[e.code] = false; });
 
 function setupTouch() {
-  const MAP = { 'tb-l':'lT','tb-r':'rT','tb-brk':'brkT','tb-gas':'gasT','tb-dash':'dashT','tb-rev':'revT' };
+  const MAP = { 'tb-l':'lT','tb-r':'rT','tb-gas':'gasT','tb-dash':'dashT','tb-rev':'revT' };
   Object.entries(MAP).forEach(([id,key]) => {
     const el = document.getElementById(id);
     const on=()=>{ G.inp[key]=true; el.classList.add('on'); };
@@ -1818,6 +1837,7 @@ const HWY_LINES = [
 //  COLLISION PENALTY (Phase 4)  – チップマイナス・コンボリセット
 // ═══════════════════════════════════════════════════════════════
 function applyCollisionPenalty(label, shakeDur) {
+  sndCollision();
   const penalty = 200; // チップから200円減算（100円単位）
   if (G.carState === 'RIDE') {
     G.tripTips = Math.max(0, G.tripTips - penalty);
@@ -1850,6 +1870,11 @@ function addTip(type) {
   G.tripTips += amount;
   G.combo = Math.min(5.0, parseFloat((G.combo + 0.35).toFixed(1)));
   G.maxCombo = Math.max(G.maxCombo||1.0, G.combo);
+  // 効果音
+  if (type==='near')  sndNearMiss();
+  else if (type==='drift') sndDrift();
+  else if (type==='jump')  sndJump();
+  else if (type==='dash')  sndDash();
   const labels = TIP_LABEL[type] || ['テクニック！'];
   const lbl    = labels[Math.floor(Math.random()*labels.length)];
   showEval(`${lbl}  +¥${amount.toLocaleString()}`, '#FFD060', 1.1);
@@ -1865,15 +1890,15 @@ function gameLogic(dt) {
   G.timer-=dt;
   if (G.timer<=0) { G.timer=0; endGame(); return; }
 
-  // Area label
-  document.getElementById('area-label').textContent = getAreaName();
-
-  // Highway detection
+  // Highway detection（関数スコープで宣言し後続ブロックからも参照可）
   const isOnHwy = G.pos.x>95 && G.pos.z<-10;
   if (isOnHwy && onHighwaySince<0) {
     onHighwaySince = G.timer;
     showEval('高速道路', '#AAFFFF', 1.5);
   } else if (!isOnHwy) { onHighwaySince = -1; }
+
+  // Area label
+  document.getElementById('area-label').textContent = getAreaName();
 
   // Proximity rings
   let nearestPax=null, nearestD=999;
@@ -1906,6 +1931,11 @@ function gameLogic(dt) {
       if (G.pos.distanceTo(p.pos)<PICKUP_R && Math.abs(G.spd)<10) {
         p.active=false; p.mesh.visible=false;
         G.carState='RIDE'; G.tripDist=0; G.tripTips=0;
+        // 運賃メーター初期化
+        const isAirportDest = G.dest.name.includes('空港');
+        G.meterFare     = isAirportDest ? 17000 : 700;
+        G.meterNextTick = isAirportDest ? Infinity : 1150;
+        G.meterFlash    = 0;
         const d2d=p.pos.distanceTo(G.dest.pos);
         const timerBonus = d2d>90?30 : d2d>45?22 : 15;
         G.timer += timerBonus;
@@ -1913,11 +1943,12 @@ function gameLogic(dt) {
         G.paxTimerMax = d2d>90?90 : d2d>45?65 : 45;
         G.paxTimer    = G.paxTimerMax;
         G.dest.mesh.visible=true;
-        document.getElementById('hf').style.display='';
+        document.getElementById('meter').style.display='flex';
         document.getElementById('hd').style.display='';
         document.getElementById('pax-bar').style.display='';
         document.getElementById('dn').textContent=G.dest.name;
         showEval('乗車！','#00FF88',1.8);
+        sndPickup();
         const isAirport = G.dest.name.includes('空港');
         showStatus(`「${getBoardLine(G.dest.name)}」\n➤ ${G.dest.name}${isAirport?'\n🟣 高速道路を利用してください！':''}`);
         paxRespawnT=8;
@@ -1932,10 +1963,11 @@ function gameLogic(dt) {
       // 時間切れ → 途中降車・運賃ゼロ
       G.paxTimer = 0;
       showEval('時間切れ！運賃ゼロ…', '#FF4444', 2.5);
+      sndTimeout();
       showStatus('「もうええわ！降りるけぇ！」');
       G.carState='WAIT'; G.tripTips=0; G.combo=1.0; G.consec=0;
       G.dest.mesh.visible=false;
-      document.getElementById('hf').style.display='none';
+      document.getElementById('meter').style.display='none';
       document.getElementById('hd').style.display='none';
       document.getElementById('pax-bar').style.display='none';
       destI=(destI+1)%DEST_POOL.length;
@@ -1961,12 +1993,24 @@ function gameLogic(dt) {
     }
   }
 
+  // ── 運賃メーター更新 ──────────────────────────────────
+  if (G.carState==='RIDE') {
+    G.meterFlash = Math.max(0, G.meterFlash - dt);
+    // 走行距離が次のティック閾値を超えたらカウントアップ
+    while (G.tripDist >= G.meterNextTick && G.meterNextTick !== Infinity) {
+      G.meterFare    += 100;
+      G.meterNextTick += 300;
+      G.meterFlash    = 0.25; // 0.25秒フラッシュ
+      sndMeterTick();
+    }
+  }
+
   // ── 到着判定 ─────────────────────────────────────────
   if (G.carState==='RIDE') {
     const distToDest=G.pos.distanceTo(G.dest.pos);
-    const realDist=getDistReal(G.tripDist+distToDest);
-    const curFare=calcFare(realDist);
-    document.getElementById('fv').textContent=curFare.toLocaleString();
+    const meterEl = document.getElementById('meter-value');
+    meterEl.textContent = '¥' + G.meterFare.toLocaleString();
+    if (G.meterFlash > 0) { meterEl.classList.add('flash'); } else { meterEl.classList.remove('flash'); }
     document.getElementById('dd').textContent=
       distToDest>999 ? Math.floor(distToDest/10)+'km' : Math.floor(getDistReal(distToDest))+'m';
 
@@ -1974,12 +2018,13 @@ function gameLogic(dt) {
       showEval(isOnHwy&&Math.random()<.4?rand(HWY_LINES):rand(DRIVE_LINES), '#AADDFF', 1.4);
 
     if (distToDest<ARRIVE_R && Math.abs(G.spd)<ARRIVE_MAX_SPD) {
-      const f   = calcFare(getDistReal(G.tripDist+distToDest));
+      const f   = G.meterFare;  // メーター値を運賃として使用
       const tips = Math.floor(G.tripTips * G.combo);
       const kmh  = G.spd*3.6;
       let speedBonus=0, etxt='GOOD', ecol='#ffffff';
-      if      (kmh>55){ etxt='KAMIKAZE!'; ecol='#FFD700'; speedBonus=500; G.timer+=5; }
-      else if (kmh>22){ etxt='GREAT!';    ecol='#FFFF44'; speedBonus=200; G.timer+=2; }
+      if      (kmh>55){ etxt='KAMIKAZE!'; ecol='#FFD700'; speedBonus=500; G.timer+=5; sndArrive(true); }
+      else if (kmh>22){ etxt='GREAT!';    ecol='#FFFF44'; speedBonus=200; G.timer+=2; sndArrive(false); }
+      else { sndGood(); }
       // 連続送迎ボーナス
       G.consec++; G.maxConsec=Math.max(G.maxConsec,G.consec);
       const consecBonus = G.consec>=3 ? G.consec*200 : 0;
@@ -1987,7 +2032,7 @@ function gameLogic(dt) {
       G.earn += total; G.deliveries++;
       const breakdownParts = [`基本¥${f.toLocaleString()}`];
       if (tips>0)        breakdownParts.push(`チップ¥${tips.toLocaleString()}`);
-      if (speedBonus>0)  breakdownParts.push(`速達¥${speedBonus}`);
+      if (speedBonus>0)  breakdownParts.push(`スピードボーナス¥${speedBonus}`);
       if (consecBonus>0) breakdownParts.push(`連続×${G.consec}ボーナス¥${consecBonus}`);
       showEval(etxt, ecol, 2.8);
       showStatus(`${rand(ARRIVE_LINES)}\n${breakdownParts.join('  ')}\n合計+¥${total.toLocaleString()}`);
@@ -1996,7 +2041,7 @@ function gameLogic(dt) {
       G.carState='WAIT';
       G.dest.mesh.visible=false;
       pickupRing.visible=false; arriveRing.visible=false;
-      document.getElementById('hf').style.display='none';
+      document.getElementById('meter').style.display='none';
       document.getElementById('hd').style.display='none';
       document.getElementById('pax-bar').style.display='none';
       destI=(destI+1)%DEST_POOL.length;
@@ -2009,8 +2054,10 @@ function gameLogic(dt) {
     }
   }
 
-  // 神風ダッシュでチップ（乗車中のみ）
-  if ((G.inp.dashK||G.inp.dashT) && G.spd>8 && G.etTimer<=0) {
+  // 神風ダッシュでチップ（乗車中のみ・クールダウン1.8秒）
+  G.dashCool = Math.max(0, G.dashCool - dt);
+  if ((G.inp.dashK||G.inp.dashT) && G.spd>8 && G.dashCool<=0) {
+    G.dashCool = 1.8;
     if (G.carState==='RIDE') addTip('dash');
     else showEval('神風ダッシュ！','#FF8800',.7);
   }
@@ -2061,7 +2108,19 @@ function updateMM() {
   const sc = MM_W/(2*MM_R);
   const px0=MM_W/2, py0=MM_H/2;
   mmCtx.clearRect(0,0,MM_W,MM_H);
+
+  // 円形クリップ（ヘディングアップで角が空くのを隠す）
+  mmCtx.save();
+  mmCtx.beginPath(); mmCtx.arc(px0,py0,MM_W/2-1,0,Math.PI*2);
+  mmCtx.clip();
+
   mmCtx.fillStyle='#0a1218'; mmCtx.fillRect(0,0,MM_W,MM_H);
+
+  // ── ヘディングアップ：自車進行方向が上になるよう全体を回転 ──
+  mmCtx.save();
+  mmCtx.translate(px0, py0);
+  mmCtx.rotate(G.hdg);          // 自車の向きと逆回転
+  mmCtx.translate(-px0, -py0);
 
   // Roads
   ROAD_SEGS.forEach(s => {
@@ -2090,7 +2149,7 @@ function updateMM() {
       mmCtx.fillStyle='#FF4400';
       mmCtx.beginPath(); mmCtx.arc(x,y,4,0,Math.PI*2); mmCtx.fill();
     } else {
-      // Off-map: arrow at edge
+      // Off-map: edge arrow（ワールド座標系での方向）
       const ang=Math.atan2(dx,dz);
       const er=42;
       const ex=px0+Math.sin(ang)*er, ey=py0+Math.cos(ang)*er;
@@ -2102,14 +2161,18 @@ function updateMM() {
     }
   }
 
-  // Player (always center)
+  mmCtx.restore(); // ヘディングアップ回転を戻す
+
+  // Player（常に中央・常に上向き固定）
   mmCtx.fillStyle='#FFD700';
-  mmCtx.save(); mmCtx.translate(px0,py0); mmCtx.rotate(-G.hdg);
-  mmCtx.beginPath(); mmCtx.moveTo(0,-5); mmCtx.lineTo(3.2,4); mmCtx.lineTo(-3.2,4);
+  mmCtx.save(); mmCtx.translate(px0,py0);
+  mmCtx.beginPath(); mmCtx.moveTo(0,-6); mmCtx.lineTo(4,5); mmCtx.lineTo(-4,5);
   mmCtx.closePath(); mmCtx.fill(); mmCtx.restore();
 
-  mmCtx.strokeStyle='rgba(255,200,0,.5)'; mmCtx.lineWidth=1;
-  mmCtx.strokeRect(0,0,MM_W,MM_H);
+  // 円形ボーダー
+  mmCtx.restore(); // clip解除
+  mmCtx.strokeStyle='rgba(255,200,0,.6)'; mmCtx.lineWidth=1.5;
+  mmCtx.beginPath(); mmCtx.arc(px0,py0,MM_W/2-1,0,Math.PI*2); mmCtx.stroke();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2175,99 +2238,6 @@ function showVehicleSel() {
   document.getElementById('vehiclesel').style.display='flex';
   const grid = document.getElementById('vehicle-grid');
   grid.innerHTML = '';
-  // 車両ごとのSVGシルエット（簡易）
-  const VEH_SVG = [
-    // JPN TAXI - 背高・角ばったボックス
-    `<svg viewBox="0 0 80 36" width="76" height="34">
-      <rect x="4" y="16" width="72" height="14" rx="2" fill="#1A3060"/>
-      <rect x="8" y="6" width="64" height="12" rx="2" fill="#111122"/>
-      <rect x="12" y="2" width="56" height="6" rx="1" fill="#111122"/>
-      <rect x="14" y="7" width="18" height="8" rx="1" fill="#5588AA" opacity=".85"/>
-      <rect x="38" y="7" width="18" height="8" rx="1" fill="#5588AA" opacity=".85"/>
-      <rect x="30" y="1" width="20" height="4" rx="1" fill="#FFFFAA" opacity=".9"/>
-      <circle cx="16" cy="31" r="5" fill="#1A1A1A"/><circle cx="16" cy="31" r="2.5" fill="#BBBBBB"/>
-      <circle cx="64" cy="31" r="5" fill="#1A1A1A"/><circle cx="64" cy="31" r="2.5" fill="#BBBBBB"/>
-    </svg>`,
-    // コンフォート - 参考画像準拠（側面図：ロングノーズ3ボックス・大型白ホイールキャップ）
-    `<svg viewBox="0 0 96 38" width="92" height="36">
-      <!-- アンダーボディ（低く長い） -->
-      <rect x="3" y="18" width="88" height="10" rx="1" fill="#111122"/>
-      <!-- フード（長い・やや低い） -->
-      <polygon points="3,18 3,24 28,24 28,18 22,13 6,13" fill="#111122"/>
-      <!-- キャビン -->
-      <rect x="27" y="11" width="42" height="9" rx="1" fill="#111122"/>
-      <!-- トランク -->
-      <rect x="67" y="15" width="22" height="7" rx="1" fill="#111122"/>
-      <!-- フロントウィンドウ（大型・傾斜） -->
-      <polygon points="28,12 38,12 38,19 29,19" fill="#4A7A99" opacity=".85"/>
-      <!-- リアウィンドウ -->
-      <polygon points="66,12 66,19 57,19 57,12" fill="#4A7A99" opacity=".85"/>
-      <!-- サイド窓（2枚） -->
-      <rect x="40" y="12" width="14" height="7" rx="1" fill="#4A7A99" opacity=".85"/>
-      <!-- ルーフサイン -->
-      <rect x="43" y="8"  width="14" height="4" rx="1" fill="#FFFFAA"/>
-      <!-- クロームトリムライン -->
-      <rect x="3" y="22" width="88" height="1.5" fill="#BBBBBB" opacity=".7"/>
-      <!-- クロームバンパー前後 -->
-      <rect x="1" y="23" width="6" height="4" rx="1" fill="#CCCCCC"/>
-      <rect x="88" y="23" width="6" height="4" rx="1" fill="#CCCCCC"/>
-      <!-- ヘッドライト（角型） -->
-      <rect x="4"  y="16" width="8" height="4" rx="1" fill="#FFFFBB"/>
-      <rect x="83" y="19" width="8" height="3" rx="1" fill="#FF3300"/>
-      <!-- フロントタイヤ（大型白ハブキャップ） -->
-      <circle cx="22" cy="30" r="7.5" fill="#1A1A1A"/>
-      <circle cx="22" cy="30" r="5"   fill="#DDDDDD"/>
-      <circle cx="22" cy="30" r="2.2" fill="#444"/>
-      <circle cx="22" cy="30" r="0.8" fill="#CCC"/>
-      <!-- リアタイヤ（大型白ハブキャップ） -->
-      <circle cx="74" cy="30" r="7.5" fill="#1A1A1A"/>
-      <circle cx="74" cy="30" r="5"   fill="#DDDDDD"/>
-      <circle cx="74" cy="30" r="2.2" fill="#444"/>
-      <circle cx="74" cy="30" r="0.8" fill="#CCC"/>
-    </svg>`,
-    // ワゴン - 超背高・ボックス型
-    `<svg viewBox="0 0 84 40" width="80" height="38">
-      <rect x="4" y="10" width="76" height="24" rx="2" fill="#1A4A2A"/>
-      <rect x="6" y="4" width="72" height="8" rx="2" fill="#151D28"/>
-      <rect x="8" y="5" width="68" height="14" rx="1" fill="#5588AA" opacity=".75"/>
-      <rect x="8" y="20" width="30" height="12" rx="1" fill="#5588AA" opacity=".75"/>
-      <rect x="46" y="20" width="30" height="12" rx="1" fill="#5588AA" opacity=".75"/>
-      <circle cx="18" cy="36" r="5.5" fill="#1A1A1A"/><circle cx="18" cy="36" r="2.8" fill="#CCCCCC"/>
-      <circle cx="66" cy="36" r="5.5" fill="#1A1A1A"/><circle cx="66" cy="36" r="2.8" fill="#CCCCCC"/>
-    </svg>`,
-    // TUK-TUK - 参考画像準拠（側面図：大型幌・前1輪・黄色リム）
-    `<svg viewBox="0 0 90 46" width="86" height="44">
-      <!-- 幌（キャノピー）大型・前後にオーバーハング -->
-      <rect x="2" y="5" width="82" height="6" rx="3" fill="#CC2200"/>
-      <rect x="2" y="10" width="82" height="2" rx="1" fill="#991800"/>
-      <!-- フロントピラー -->
-      <rect x="3" y="12" width="4" height="17" rx="1" fill="#CC2200"/>
-      <!-- リアピラー -->
-      <rect x="79" y="12" width="4" height="17" rx="1" fill="#CC2200"/>
-      <!-- フロントカウル（エンジン・ドライバー席） -->
-      <rect x="5" y="12" width="28" height="18" rx="2" fill="#CC2200"/>
-      <!-- フロントウィンドウ（縦長・立ち気味） -->
-      <rect x="7" y="13" width="18" height="14" rx="1" fill="#5AADCC" opacity=".82"/>
-      <!-- エンジンバンプ（下部） -->
-      <rect x="6" y="26" width="24" height="5" rx="2" fill="#991800"/>
-      <!-- 客席フロア -->
-      <rect x="32" y="21" width="48" height="9" rx="1" fill="#CC2200"/>
-      <!-- 客席後部パネル -->
-      <rect x="76" y="14" width="5" height="16" rx="1" fill="#991800"/>
-      <!-- アンダーフレーム -->
-      <rect x="5" y="29" width="76" height="4" rx="2" fill="#881100"/>
-      <!-- フロント1輪（単輪・黄リム） -->
-      <circle cx="18" cy="39" r="7.5" fill="#1A1A1A"/>
-      <circle cx="18" cy="39" r="4"   fill="#FFCC00"/>
-      <circle cx="18" cy="39" r="1.8" fill="#333"/>
-      <!-- リア1輪（側面から見えるもの） -->
-      <circle cx="68" cy="39" r="7.5" fill="#1A1A1A"/>
-      <circle cx="68" cy="39" r="4"   fill="#FFCC00"/>
-      <circle cx="68" cy="39" r="1.8" fill="#333"/>
-      <!-- ハンドル -->
-      <rect x="6" y="21" width="14" height="2" rx="1" fill="#888"/>
-    </svg>`,
-  ];
   const statNames = ['加速','最高速','耐久'];
   const statCols  = ['#FF6644','#44AAFF','#44DD88'];
   VEHICLES.forEach((v, i) => {
@@ -2278,7 +2248,6 @@ function showVehicleSel() {
       grid.querySelectorAll('.veh-card').forEach((el,j)=>el.classList.toggle('sel',j===i));
     };
     card.innerHTML = `
-      <div class="veh-preview">${VEH_SVG[i]}</div>
       <div class="vn">${v.name}</div>
       <div class="vd">${v.desc}</div>
       ${v.stat.map((s,si)=>`
@@ -2301,6 +2270,7 @@ function confirmVehicle() {
 // ═══════════════════════════════════════════════════════════════
 function endGame() {
   G.phase='END';
+  stopEngine();
   const r=getRank(G.earn);
   // 明るい背景に映える色
   const RC={S:'#8B6800',A:'#8B3000',B:'#005599',C:'#006622',D:'#880044',E:'#555'};
@@ -2320,6 +2290,8 @@ function startGame() {
   document.getElementById('vehiclesel').style.display='none';
   document.getElementById('result').style.display='none';
   G.phase='PLAY'; G.carState='SEEK';
+  engineStarted = false;
+  startEngine();
   G.timer=75; G.earn=0; G.deliveries=0;
   G.spd=0; G.hdg=0; G.tripDist=0;
   G.etTimer=0; G.stTimer=0;
@@ -2327,7 +2299,8 @@ function startGame() {
   G.combo=1.0; G.tripTips=0;
   G.paxTimer=0; G.paxTimerMax=60;
   G.consec=0; G.maxConsec=0; G.maxCombo=1.0;
-  G.driftTimer=0; G.driftCool=0;
+  G.driftTimer=0; G.driftCool=0; G.dashCool=0;
+  G.meterFare=700; G.meterNextTick=1150; G.meterFlash=0;
   G.inAir=false; G.jumpVel=0; G.jumpCool=0;
   G.pos.set(62, .5, 42);   // 駅前アプローチ終点・比治山エリア入口
   camPos.set(62, 8, 55);
@@ -2364,7 +2337,7 @@ function startGame() {
   });
   document.getElementById('et').style.opacity='0';
   document.getElementById('st').style.opacity='0';
-  document.getElementById('hf').style.display='none';
+  document.getElementById('meter').style.display='none';
   document.getElementById('hd').style.display='none';
   document.getElementById('pax-bar').style.display='none';
   const ch = CHARS[selectedChar];
@@ -2411,13 +2384,228 @@ function loop(ts) {
     gameLogic(dt);
     updateHUD();
     updateMM();
+    updateEngineSound();
   }
   animateScene(ts);
   renderer.render(scene, cam);
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  RESIZE
+//  SOUND SYSTEM (Web Audio API – ファイル不要)
+// ═══════════════════════════════════════════════════════════════
+let audioCtx = null;
+let engineOsc = null, engineGain = null;
+let engineStarted = false;
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+// ── エンジン音（速度連動ドローン）──────────────────────────────
+function startEngine() {
+  if (engineStarted) return;
+  const ctx = getAudioCtx();
+  engineStarted = true;
+
+  engineGain = ctx.createGain();
+  engineGain.gain.value = 0;
+  engineGain.connect(ctx.destination);
+
+  // 低周波オシレーター×2（うなり音）
+  engineOsc = ctx.createOscillator();
+  engineOsc.type = 'sawtooth';
+  engineOsc.frequency.value = 55;
+
+  const engineOsc2 = ctx.createOscillator();
+  engineOsc2.type = 'square';
+  engineOsc2.frequency.value = 58;
+
+  const distort = ctx.createWaveShaper();
+  const curve = new Float32Array(256);
+  for (let i = 0; i < 256; i++) {
+    const x = (i * 2) / 256 - 1;
+    curve[i] = (Math.PI + 300) * x / (Math.PI + 300 * Math.abs(x));
+  }
+  distort.curve = curve;
+
+  const gainOsc2 = ctx.createGain();
+  gainOsc2.gain.value = 0.3;
+
+  engineOsc.connect(distort);
+  distort.connect(engineGain);
+  engineOsc2.connect(gainOsc2);
+  gainOsc2.connect(engineGain);
+
+  engineOsc.start();
+  engineOsc2.start();
+  // engineOsc2を保持
+  engineOsc._osc2 = engineOsc2;
+}
+
+function updateEngineSound() {
+  if (!engineGain || !engineOsc || G.phase !== 'PLAY') return;
+  const ctx = getAudioCtx();
+  const now = ctx.currentTime;
+  const spd = Math.abs(G.spd);
+  const freq = 45 + spd * 4.5;
+  const vol  = spd < 0.5 ? 0.04 : Math.min(0.22, 0.05 + spd * 0.006);
+  engineOsc.frequency.setTargetAtTime(freq, now, 0.1);
+  if (engineOsc._osc2) engineOsc._osc2.frequency.setTargetAtTime(freq * 1.055, now, 0.1);
+  engineGain.gain.setTargetAtTime(vol, now, 0.08);
+}
+
+function stopEngine() {
+  if (!engineGain) return;
+  const ctx = getAudioCtx();
+  engineGain.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
+}
+
+// ── 短い効果音ユーティリティ ──────────────────────────────────
+function playTone(freq, type, vol, dur, decay=0.15) {
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const g   = ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    g.gain.setValueAtTime(vol, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + dur + decay);
+  } catch(e) {}
+}
+
+function playNoise(vol, dur, freq=800, q=1) {
+  try {
+    const ctx  = getAudioCtx();
+    const buf  = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    const src    = ctx.createBufferSource();
+    const filter = ctx.createBiquadFilter();
+    const g      = ctx.createGain();
+    src.buffer = buf;
+    filter.type = 'bandpass';
+    filter.frequency.value = freq;
+    filter.Q.value = q;
+    g.gain.setValueAtTime(vol, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    src.connect(filter); filter.connect(g); g.connect(ctx.destination);
+    src.start();
+  } catch(e) {}
+}
+
+// ── 各効果音 ────────────────────────────────────────────────
+function sndPickup() {
+  // 乗車チャイム（上昇3音）
+  [523, 659, 784].forEach((f, i) => {
+    setTimeout(() => playTone(f, 'sine', 0.18, 0.18), i * 90);
+  });
+}
+
+function sndArrive(isKamikaze) {
+  if (isKamikaze) {
+    // KAMIKAZE! - 派手なファンファーレ
+    [[523,0],[659,80],[784,160],[1047,260],[1319,360],[784,500],[1047,600]].forEach(([f,t]) => {
+      setTimeout(() => playTone(f, 'square', 0.12, 0.18), t);
+    });
+    setTimeout(() => playNoise(0.15, 0.25, 1200, 2), 600);
+  } else {
+    // GREAT! - 明るい2音
+    [659, 880].forEach((f, i) => {
+      setTimeout(() => playTone(f, 'sine', 0.15, 0.22), i * 110);
+    });
+  }
+}
+
+function sndGood() {
+  // GOOD - 短い1音
+  playTone(523, 'sine', 0.12, 0.2);
+}
+
+function sndCollision() {
+  // 衝突 - 低音衝撃＋ノイズ
+  playTone(80, 'sawtooth', 0.3, 0.35);
+  playNoise(0.35, 0.3, 300, 0.8);
+}
+
+function sndNearMiss() {
+  // ニアミス - シュッという通過音
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const g   = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1200, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.25);
+    g.gain.setValueAtTime(0.14, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.3);
+  } catch(e) {}
+}
+
+function sndDrift() {
+  // ドリフト - タイヤスキール
+  playNoise(0.18, 0.35, 2200, 4);
+}
+
+function sndJump() {
+  // ジャンプ - 上昇音
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const g   = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(200, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.3);
+    g.gain.setValueAtTime(0.12, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.45);
+  } catch(e) {}
+}
+
+function sndTimeout() {
+  // 時間切れ - 下降音
+  [440, 349, 262].forEach((f, i) => {
+    setTimeout(() => playTone(f, 'square', 0.14, 0.2), i * 130);
+  });
+}
+
+function sndDash() {
+  // 神風ダッシュ - 短い加速音
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const g   = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(150, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + 0.15);
+    g.gain.setValueAtTime(0.1, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.22);
+  } catch(e) {}
+}
+
+function sndMeterTick() {
+  // メータータック - 短い高音クリック
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const g   = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.value = 1800;
+    g.gain.setValueAtTime(0.08, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.07);
+  } catch(e) {}
+}
+
+
 // ═══════════════════════════════════════════════════════════════
 addEventListener('resize', () => {
   cam.aspect=innerWidth/innerHeight;
